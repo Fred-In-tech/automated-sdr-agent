@@ -10,7 +10,7 @@ questionary>=2.0
 # Patched floors for dependencies of the packages above. pip keeps an already-installed version
 # while it still satisfies the parent's (much older) range, so without these an existing
 # virtualenv could keep a vulnerable copy forever.
-urllib3>=2.7
+urllib3>=2.8.0
 idna>=3.15
 certifi>=2024.7.4
 soupsieve>=2.9
