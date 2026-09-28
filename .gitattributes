@@ -1,0 +1,15 @@
+# Normalise text files to LF in the repository; pin the line endings that scripts need on disk.
+* text=auto
+
+# bash refuses CRLF scripts ("$'\r': command not found"), even when checked out on Windows
+*.sh text eol=lf
+bin/sdr text eol=lf
+
+# cmd.exe and Windows PowerShell expect CRLF
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Never diff, merge or convert line endings in images
+*.png binary
+*.jpg binary
+*.ico binary

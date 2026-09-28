@@ -1,0 +1,257 @@
+# =====================================================================
+#  YOUR OUTREACH PROFILE
+#  This is the only file you need to edit to make the bots yours.
+#  Easiest way to create it:   sdr setup
+#  Or copy this file to config/profile.toml and edit the values.
+#
+#  In any email/reply text you can use these placeholders:
+#    {{first_name}}  their first name, or "there" if we couldn't find a real one
+#    {{company}} {{category}} {{location}} {{opener}}
+#    {{product_name}} {{product_url}} {{offer}} {{from_name}} {{sign_off}}
+# =====================================================================
+
+# ── Who you are ──────────────────────────────────────────────────────
+[sender]
+product_name   = "Acme Scheduling"                  # your product or business
+product_url    = "https://example.com"            # where "try it" links go (e.g. a signup page)
+# website      = "https://example.com"          # optional: your homepage, shown on the dashboard
+from_name      = "Jamie from Acme"                  # name people see in their inbox
+# Optional: send as an alias of your login mailbox (e.g. jamie@ while logging in as hello@).
+# Replies go to the alias, so make sure it forwards to the mailbox in .env. Blank = login address.
+from_email     = ""
+sign_off       = "Jamie"                            # how you sign your emails
+offer          = "free 14-day trial"                # what you're offering them
+# REQUIRED BY LAW for cold email (US CAN-SPAM, UK/EU rules): a real mailing address.
+postal_address = "123 Main St, Austin, TX 78701, USA"
+
+# One line used by the email templates: "<product_name> helps <ideal client>s ..."
+pitch          = "spend less time on admin and more time on paid work"
+
+# ── Who you're targeting (your ideal clients) ────────────────────────
+[targeting]
+# How to search the web for leads: "auto" (Brave if BRAVE_API_KEY is in .env, else DuckDuckGo),
+# "brave" (recommended; free key at https://brave.com/search/api/), "duckduckgo" (no key; may slow
+# down or stop if searched too much) or "bing" (not recommended: against Bing's rules).
+search_engine = "auto"
+# One short label for your ideal client. Used as {{category}} in emails.
+ideal_client = "wedding photographer"
+
+# Job titles / business types to search the web for.
+professions = [
+  "wedding photographer",
+  "portrait photographer",
+  "event photographer",
+]
+
+# Cities to search in. Use "City, ST" for US cities so Thumbtack search works.
+cities = [
+  "Austin, TX",
+  "Denver, CO",
+  "Nashville, TN",
+]
+
+# Extra words added to every web search (helps find contact pages).
+search_extra_words = "contact"
+
+# Optional: short words that describe what they do, used to find their website.
+# Leave empty to work these out from `professions` automatically.
+keywords = []
+
+# Optional: Thumbtack (US only). Category slugs from thumbtack.com/k/<slug>/near-me
+# e.g. "photographers", "wedding-photography". Leave empty to skip Thumbtack.
+thumbtack_categories = ["photographers", "wedding-photography"]
+# Category used for city pages: thumbtack.com/tx/austin/<this>/  ("" to skip)
+thumbtack_city_category = "photographers"
+
+# Websites to never pull leads from (directories, marketplaces, etc.).
+skip_domains = []
+
+# How many new *qualified* leads to find each run.
+leads_per_run = 4
+
+# ── Lead quality: only email businesses that fit ────────────────────
+# Each lead gets a 0-100 fit score (see `sdr report`). Below this, it's
+# saved as "disqualified" and never emailed.
+min_fit_score = 50
+# Words on a website that suggest they sell packages/quotes (i.e. they feel the pain you solve).
+buying_signals = ["packages", "pricing", "investment", "inquire", "book now", "quote", "check availability"]
+# Words that mean "big company / shop, not a small business" -> rejected.
+disqualify_words = ["investor relations", "nasdaq", "nyse", "press releases", "franchise opportunities",
+                    "job openings", "add to cart", "free shipping", "get matched", "the directory",
+                    "list your business", "claim your listing", "vendor directory", "browse by city"]
+
+# ── Your cold email sequence ─────────────────────────────────────────
+# First email + follow-ups, sent in the same email thread until they reply.
+# Anyone who replies, bounces or unsubscribes is automatically taken out.
+[outreach]
+emails_per_run = 4                 # max emails per run (new + follow-ups)
+daily_send_limit = 20              # max emails per day across all runs (warm up slowly!)
+seconds_between_emails = 300       # wait between sends; protects your sender reputation
+send_days = ["Mon", "Tue", "Wed", "Thu", "Fri"]
+send_window = "08:00-17:00"        # only send during business hours (this computer's time); "" = any time
+max_bounce_rate = 5                # pause sending if more than 5% of recent first emails bounce
+track_links = true                 # add utm_ tags to links to your own site (see them in Google Analytics)
+utm_campaign = "sdr"
+
+# Short, lowercase, looks like a normal email. No first name, no hype.
+subject = "question about {{company}}"
+# Optional A/B test: each lead gets one subject; `cli.py report` shows reply rate per subject.
+# subject_variants = ["question about {{company}}", "quick idea for {{company}}"]
+
+# Used as {{opener}} when AI personalisation is off (see [ai]).
+default_opener = "I came across {{company}} while looking at {{category}}s in {{location}}."
+
+body = """Hi {{first_name}},
+
+{{opener}}
+
+We built {{product_name}} to help businesses like yours spend less time on admin and more time on paid work.
+
+Would it be useful for {{company}}?
+
+{{sign_off}}"""
+
+# Optional designed HTML version of the FIRST email. Plain text gets more replies for cold email.
+# html_body = """<p>Hi {{first_name}}, ...</p>"""
+
+# Opt-out line (legally required). A human wording keeps you out of Promotions.
+unsubscribe_line = "If this isn't relevant, just let me know and I won't reach out again."
+# list_unsubscribe_header = false  # true only if you send in bulk (thousands/day); it marks mail as bulk
+
+# Follow-ups reply in the same thread ("Re: <subject>"). Each should add something new.
+[[outreach.follow_ups]]
+days_after_previous = 3
+body = """Hi {{first_name}},
+
+One more thought: most {{category}}s tell us the slowest part of their week is admin that doesn't pay.
+
+{{product_name}} takes that off your plate. Want me to send the link to try it?
+
+{{sign_off}}"""
+
+[[outreach.follow_ups]]
+days_after_previous = 4
+body = """Hi {{first_name}},
+
+In case it's easier to just look: there's a {{offer}} here: {{product_url}}
+
+{{sign_off}}"""
+
+[[outreach.follow_ups]]
+days_after_previous = 7
+body = """Hi {{first_name}},
+
+I haven't heard back, so I'll assume the timing isn't right and stop emailing.
+
+If it's easier, just reply with a number:
+1 - send me the link
+2 - maybe later
+3 - not interested
+
+Good luck with everything at {{company}}.
+
+{{sign_off}}"""
+
+# One polite check-in for leads who replied "not now" (remove this section to never re-contact them).
+[outreach.not_now_follow_up]
+days = 60
+body = """Hi {{first_name}},
+
+You mentioned the timing wasn't right a while back, so I'm checking in once. If it's useful now,
+there's a {{offer}} here: {{product_url}}
+
+No worries if not, I won't follow up again.
+
+{{sign_off}}"""
+
+# ── How your emails look ─────────────────────────────────────────────
+# style = "personal": like an email typed in Gmail — no images or layout. Best for sales
+#                     email: Gmail files it under Primary, where people reply.
+# style = "branded":  logo, brand colours, a styled button and feature pills. Looks like
+#                     marketing, so Gmail is more likely to file it under Promotions.
+# Either way a plain-text version is sent too. Put {{button}} in a body (with a
+# `button = { text = "...", url = "..." }` line under it) for a call-to-action link/button.
+[email_design]
+style = "personal"
+# Optional (personal style): a small logo beside your name in the signature, like many sales
+# reps use. With signature_logo_test = true, half your leads get it and half don't, and
+# `sdr report` shows which gets more replies.
+signature_logo_url = ""              # https URL to a small square logo, e.g. 192x192 PNG
+signature_logo_test = true
+logo_url = ""                        # https URL to a small square logo (e.g. 192x192 PNG)
+brand_color = "#3B82F6"
+heading_color = "#0F1729"
+text_color = "#1B2B4D"
+background = "#F3F6FB"
+tagline = ""
+highlights = []                      # small feature pills under the first email
+
+# ── When a lead writes back ─────────────────────────────────────────
+# Every real reply is sorted into: interested, question, not_now, not_interested,
+# unsubscribe, wrong_person, other. Notifications and out-of-office replies are ignored.
+[auto_reply]
+enabled = true
+lookback_days = 14                  # how far back to check your inbox each run
+# Replies containing these are marked "unsubscribed" and never emailed again.
+opt_out_words = ["unsubscribe", "remove me", "stop emailing", "take me off"]
+
+# Optional: send these replies in the branded design (logo, colours, button) even when your
+# cold emails are "personal" — e.g. the welcome email for "sounds good, send me the link".
+# branded_intents = ["interested"]
+
+# Approved replies, sent once to a lead's FIRST reply of that kind. Leave one out to answer
+# yourself. You get an alert for interested / question / not_now / wrong_person / other either way.
+[auto_reply.replies]
+interested = """Hi {{first_name}},
+
+Great! Here's the link to start your {{offer}}: {{product_url}}
+
+I'll check in personally in case you have questions.
+
+{{sign_off}}"""
+
+question = """Hi {{first_name}},
+
+Good question. I'll get back to you personally shortly.
+
+In the meantime you can try everything with a {{offer}}: {{product_url}}
+
+{{sign_off}}"""
+
+not_now = """Hi {{first_name}},
+
+Totally understand, thanks for letting me know. I won't keep emailing.
+
+{{sign_off}}"""
+
+# Optional: {{button}} in a reply becomes a call-to-action (a styled button when branded).
+# [auto_reply.buttons]
+# interested = { text = "Start your free trial", url = "{{product_url}}" }
+
+# ── When it runs ─────────────────────────────────────────────────────
+# `sdr schedule on` turns these into cron jobs (Mac/Linux) or Scheduled Tasks (Windows).
+[schedule]
+run_times = ["09:00", "14:00"]     # full runs: check replies, find leads, send due emails, digest
+reply_check_minutes = 45           # quick reply check in between (0 = off); sends no cold email
+
+# ── Updates ──────────────────────────────────────────────────────────
+[updates]
+mode = "notify"                    # "notify" (tell me in the digest), "auto" (install), or "off"
+
+# ── Your SDR assistant ───────────────────────────────────────────────
+[sdr]
+# Where hot-lead alerts and the daily digest go. Blank = your sending inbox.
+alert_email = ""
+daily_digest = true                 # one summary email per day: pipeline, replies, what's next
+
+# ── Optional: Claude AI (needs ANTHROPIC_API_KEY in .env + `pip install anthropic`) ──
+[ai]
+enabled = false
+# Writes a personal first line for each lead from their website ({{opener}}) and reads replies.
+model = "claude-opus-5"
+
+# ── Social posts (drafts only — nothing is posted to X/Twitter) ──────
+[social]
+enabled = false
+topics = ["Why {{category}}s are switching to {{product_name}}"]
+posts = ["""Tip for {{category}}s: ... Try {{product_name}}: {{product_url}}"""]

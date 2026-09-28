@@ -1,0 +1,19 @@
+# Weekly pull requests for outdated Python requirements and GitHub Actions.
+# Urgent security fixes come from "Dependabot security updates" (repo Settings > Code security),
+# which works independently of this schedule; CI's pip-audit job also fails on known CVEs.
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci(deps)"

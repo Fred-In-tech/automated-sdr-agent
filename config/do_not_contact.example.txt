@@ -1,0 +1,6 @@
+# Never cold-email these. One per line: a full address or a whole domain.
+# Copy to config/do_not_contact.txt (private, git-ignored) and add your own:
+# existing customers, partners, investors, competitors, people who asked not to be contacted.
+#
+# jane@existingcustomer.com
+# partnerstudio.com

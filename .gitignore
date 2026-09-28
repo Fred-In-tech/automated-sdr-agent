@@ -1,0 +1,61 @@
+# Environment variables & secrets (.env.example is the documented template and IS committed)
+.env
+*.env
+.env.*
+!.env.example
+
+# Answers for `sdr setup --answers` (written by you or an AI agent; personal details).
+# Any name that contains "answers" is covered: setup-answers.toml, schedule-answers.toml, my-answers.toml ...
+setup-answers.toml
+*answers*.toml
+
+# SQLite Database & local runtime logs
+data/automations.db
+data/cron.log
+*.db
+*.sqlite3
+*.log
+
+# Python bytecode, caches & build output
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
+.venv/
+env/
+venv/
+ENV/
+
+# OS / editor specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.idea/
+.vscode/
+
+# Personal outreach profile (targets, email wording) - share profile.example.toml instead
+config/profile.toml
+
+# Lead data contains personal information - never commit.
+# data/ also holds update backups (copies of .env and the database) and update_status.json.
+data/
+data/backups/
+*.csv
+
+# Your do-not-contact list (customers, partners, competitors) - personal data
+config/do_not_contact.txt

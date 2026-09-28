@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SDR Control Center</title>
+  <!-- Self-contained on purpose: no fonts, scripts or styles from other sites (see SECURITY.md,
+       "what the tool connects to"). Only the business's own logo comes from its own website. -->
+  <style>
+    /* Brand tokens — overwritten at load time from [email_design] in config/profile.toml */
+    :root {
+      --brand: #3B82F6;
+      --ink: #0F1729;
+      --text: #1B2B4D;
+      --muted: #64748B;
+      --bg: #F3F6FB;
+      --card: #FFFFFF;
+      --border: #E3EAF5;
+      --success: #059669;
+      --warm: #F59E0B;
+      --danger: #EF4444;
+      --brand-soft: color-mix(in srgb, var(--brand) 10%, white);
+      --brand-line: color-mix(in srgb, var(--brand) 28%, white);
+      --shadow: 0 1px 2px rgba(15, 23, 41, 0.04), 0 4px 16px rgba(15, 23, 41, 0.05);
+      /* legacy names used in the markup */
+      --text-main: var(--text);
+      --text-muted: var(--muted);
+      --accent-blue: var(--brand);
+      --card-border: var(--border);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+
+    body {
+      background-color: var(--bg);
+      background-image: radial-gradient(1200px 600px at 0% -10%, var(--brand-soft), transparent 60%);
+      background-attachment: fixed;
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in srgb, var(--card) 85%, transparent);
+      backdrop-filter: blur(12px);
+      position: sticky; top: 0; z-index: 50;
+      padding: 0.9rem 2rem;
+      display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+    }
+
+    .brand { display: flex; align-items: center; gap: 0.8rem; }
+    .brand-icon { width: 40px; height: 40px; border-radius: 11px; overflow: hidden; flex-shrink: 0;
+                  background: var(--brand); display: grid; place-items: center; box-shadow: 0 4px 14px var(--brand-line); }
+    .brand-icon img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .brand-icon span { color: #fff; font-weight: 800; font-size: 1.1rem; }
+    .brand h1 { font-size: 1.2rem; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; line-height: 1.2; }
+    .brand-meta { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+    .brand-sub { font-size: 0.8rem; color: var(--brand); text-decoration: none; font-weight: 600; }
+    .brand-sub:hover { text-decoration: underline; }
+    .brand-tagline { font-size: 0.8rem; color: var(--muted); }
+
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.35rem 0.85rem; border-radius: 9999px; font-size: 0.82rem; font-weight: 600;
+      background: color-mix(in srgb, var(--success) 10%, white); color: var(--success);
+      border: 1px solid color-mix(in srgb, var(--success) 25%, white);
+    }
+    .status-dot { width: 8px; height: 8px; background: var(--success); border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) { .status-dot, .btn-refresh.spinning .refresh-icon { animation: none; } }
+
+    .header-actions { display: flex; align-items: center; gap: 0.75rem; }
+    [hidden] { display: none !important; }
+
+    /* "Update available" pill: warm, so it reads as news rather than an error */
+    .update-pill {
+      display: inline-flex; align-items: center; gap: 0.45rem; cursor: pointer;
+      padding: 0.35rem 0.85rem; border-radius: 9999px; font-size: 0.8rem; font-weight: 700;
+      background: color-mix(in srgb, var(--warm) 14%, white); color: #92400E;
+      border: 1px solid color-mix(in srgb, var(--warm) 40%, white);
+      white-space: nowrap; transition: box-shadow 0.15s, transform 0.15s;
+    }
+    .update-pill:hover { box-shadow: 0 0 0 3px color-mix(in srgb, var(--warm) 18%, white); transform: translateY(-1px); }
+    .update-pill:focus-visible { outline: 2px solid var(--warm); outline-offset: 2px; }
+    .update-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--warm); }
+
+    .logout-link {
+      font-size: 0.82rem; font-weight: 600; color: var(--muted); text-decoration: none;
+      padding: 0.4rem 0.6rem; border-radius: 8px; transition: color 0.15s, background 0.15s;
+    }
+    .logout-link:hover { color: var(--ink); background: var(--brand-soft); }
+    .logout-link:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+    .btn-refresh {
+      background: var(--card); border: 1px solid var(--border); color: var(--text);
+      padding: 0.45rem 0.95rem; border-radius: 9px; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 0.45rem; transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .btn-refresh:hover { border-color: var(--brand-line); box-shadow: 0 0 0 3px var(--brand-soft); }
+    .btn-refresh.spinning .refresh-icon { animation: spin 0.75s ease-in-out; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    .nav-tabs { display: flex; gap: 0.25rem; padding: 0.75rem 2rem 0; border-bottom: 1px solid var(--border);
+                background: color-mix(in srgb, var(--card) 60%, transparent); overflow-x: auto; }
+    .tab-btn { background: transparent; border: none; color: var(--muted); padding: 0.75rem 1.1rem; font-size: 0.92rem;
+               font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: color 0.15s; }
+    .tab-btn:hover { color: var(--ink); }
+    .tab-btn.active { color: var(--brand); border-bottom-color: var(--brand); }
+    .tab-btn:focus-visible, .btn:focus-visible, .btn-refresh:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+    main { padding: 2rem; flex: 1; max-width: 1400px; margin: 0 auto; width: 100%; }
+
+    .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; margin-bottom: 1.75rem; }
+
+    .stat-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 1.4rem 1.5rem;
+      box-shadow: var(--shadow); position: relative; overflow: hidden; transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .stat-card::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--brand); opacity: 0.85; }
+    .stat-card:nth-child(4)::before { background: var(--warm); }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(15, 23, 41, 0.08); }
+    .stat-label { color: var(--muted); font-size: 0.82rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.5rem; }
+    .stat-value { font-size: 2.1rem; font-weight: 800; color: var(--ink); letter-spacing: -0.03em; }
+    .stat-subtext { font-size: 0.8rem; color: var(--brand); font-weight: 500; margin-top: 0.3rem; }
+
+    .section-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem;
+                    box-shadow: var(--shadow); margin-bottom: 1.75rem; }
+    #hot-leads-card { border-left: 4px solid var(--warm); }
+    #alarm-card { border-left: 4px solid var(--danger); background: color-mix(in srgb, var(--danger) 5%, white); }
+    .section-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1.1rem; flex-wrap: wrap; }
+    .section-title { font-size: 1.08rem; font-weight: 700; color: var(--ink); }
+
+    .actions-bar { display: flex; gap: 0.65rem; flex-wrap: wrap; }
+    .btn {
+      background: var(--brand); color: #fff; border: 1px solid transparent; padding: 0.65rem 1.15rem; border-radius: 10px;
+      font-weight: 700; font-size: 0.87rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem;
+      box-shadow: 0 4px 12px var(--brand-line); transition: transform 0.15s, filter 0.15s; text-decoration: none;
+    }
+    .btn:hover { filter: brightness(1.06); transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); filter: brightness(0.96); }
+    .btn-secondary { background: var(--card); border-color: var(--border); color: var(--text); box-shadow: none; }
+    .btn-secondary:hover { border-color: var(--brand-line); background: var(--brand-soft); }
+    .btn-emerald { background: var(--success); box-shadow: 0 4px 12px color-mix(in srgb, var(--success) 30%, white); }
+    .btn-purple { background: var(--ink); box-shadow: 0 4px 12px rgba(15, 23, 41, 0.18); }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th, td { padding: 0.8rem 1rem; text-align: left; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; background: var(--bg); }
+    td { color: var(--text); }
+    tr:hover td { background: var(--brand-soft); }
+
+    .badge { display: inline-block; padding: 0.22rem 0.6rem; border-radius: 999px; font-size: 0.74rem; font-weight: 600; }
+    .badge-blue { background: var(--brand-soft); color: var(--brand); }
+    .badge-emerald { background: color-mix(in srgb, var(--success) 12%, white); color: var(--success); }
+    .badge-purple { background: color-mix(in srgb, var(--ink) 8%, white); color: var(--ink); }
+
+    .log-feed { display: flex; flex-direction: column; gap: 0.6rem; max-height: 420px; overflow-y: auto; }
+    .log-item { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.75rem 1rem;
+                background: var(--bg); border-left: 3px solid var(--brand); border-radius: 8px; font-size: 0.85rem; }
+    #hot-leads-list .log-item { border-left-color: var(--warm); background: color-mix(in srgb, var(--warm) 7%, white); }
+
+    .code-box { background: var(--ink); border-radius: 10px; padding: 1rem; font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
+                font-size: 0.83rem; color: #BFDBFE; white-space: pre-wrap; overflow-x: auto; }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .target-chips { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin-bottom: 1.1rem; }
+    .chip { padding: 0.32rem 0.8rem; background: var(--brand-soft); border: 1px solid var(--brand-line); border-radius: 999px;
+            font-size: 0.8rem; font-weight: 600; color: var(--brand); }
+
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15, 23, 41, 0.45); backdrop-filter: blur(6px);
+                     z-index: 1000; justify-content: center; align-items: center; padding: 1.5rem; }
+    .modal-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 650px;
+                  box-shadow: 0 24px 48px rgba(15, 23, 41, 0.2); overflow: hidden; animation: modalFadeIn 0.18s ease-out; }
+    @keyframes modalFadeIn { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
+    .modal-header { padding: 1.1rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .modal-title { font-size: 1.05rem; font-weight: 700; color: var(--ink); }
+    .modal-close { background: transparent; border: none; color: var(--muted); font-size: 1.4rem; cursor: pointer; line-height: 1; }
+    .modal-close:hover { color: var(--ink); }
+    .modal-body { padding: 1.5rem; max-height: 70vh; overflow-y: auto; }
+    .email-meta-box { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 0.85rem 1rem; margin-bottom: 1.1rem; font-size: 0.85rem; }
+    .email-meta-row { display: flex; gap: 0.5rem; margin-bottom: 0.35rem; }
+    .email-meta-label { color: var(--muted); width: 65px; font-weight: 600; }
+    .email-meta-val { color: var(--ink); font-weight: 500; }
+    .email-content-box { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem;
+                         color: var(--text); font-size: 0.95rem; line-height: 1.6; white-space: pre-wrap; }
+    .clickable-row { cursor: pointer; transition: background 0.15s; }
+    .clickable-row:hover td { background: var(--brand-soft) !important; }
+
+    @media (max-width: 700px) {
+      header { padding: 0.8rem 1rem; }
+      .brand-tagline, .btn-refresh span:not(.refresh-icon), .status-badge, .pill-long { display: none; }
+      .header-actions { gap: 0.4rem; }
+      .update-pill { padding: 0.3rem 0.65rem; font-size: 0.74rem; }
+      .nav-tabs, main { padding-left: 1rem; padding-right: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-icon" id="brand-icon"><span id="brand-initial">✓</span></div>
+      <div>
+        <h1 id="brand-name">Automated SDR</h1>
+        <div class="brand-meta">
+          <a href="#" id="brand-link" target="_blank" rel="noopener" class="brand-sub"></a>
+          <span class="brand-tagline" id="brand-tagline">SDR Control Center</span>
+        </div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="update-pill" id="update-pill" onclick="copyUpdateCommand()" hidden>
+        <span class="update-dot" aria-hidden="true"></span>
+        <span id="update-pill-text">Update<span class="pill-long"> available</span> · <span id="update-pill-version"></span></span>
+        <span id="update-pill-feedback" hidden></span>
+      </button>
+      <button class="btn-refresh" id="global-refresh-btn" onclick="manualRefreshDashboard()" title="Refresh all dashboard data">
+        <span class="refresh-icon">🔄</span> <span>Refresh</span>
+      </button>
+      <div class="status-badge">
+        <div class="status-dot"></div>
+        Engine Active
+      </div>
+      <a href="/logout" class="logout-link" id="logout-link" hidden>Log out</a>
+    </div>
+  </header>
+
+
+  <nav class="nav-tabs">
+    <button class="tab-btn active" onclick="switchTab('overview')">Overview & Triggers</button>
+    <button class="tab-btn" onclick="switchTab('leads')">Leads</button>
+    <button class="tab-btn" onclick="switchTab('emails')">Email Outreach</button>
+    <button class="tab-btn" onclick="switchTab('social')">Social Bot (X)</button>
+    <button class="tab-btn" onclick="switchTab('setup')">Email Setup</button>
+  </nav>
+
+  <main>
+
+    <!-- OVERVIEW TAB -->
+    <div id="tab-overview" class="tab-content active">
+
+      <div class="target-chips">
+        <span style="color:var(--text-main); font-weight:600; font-size:0.85rem; margin-right:0.5rem;">Target Audience:</span>
+        <span id="target-chips-list"><span class="chip">Run <code>sdr setup</code> to set your targets</span></span>
+      </div>
+
+      <div class="grid-4">
+        <div class="stat-card">
+          <div class="stat-label">Qualified Leads</div>
+          <div class="stat-value" id="stat-leads">0</div>
+          <div class="stat-subtext" id="stat-leads-subtext">Fit your ideal client</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Contacted</div>
+          <div class="stat-value" id="stat-contacted">0</div>
+          <div class="stat-subtext" id="stat-sequence">In sequence: 0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Reply Rate</div>
+          <div class="stat-value" id="stat-reply-rate">0%</div>
+          <div class="stat-subtext" id="stat-replied">0 real replies</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Hot Leads</div>
+          <div class="stat-value" id="stat-hot">0</div>
+          <div class="stat-subtext" id="stat-positive-rate">0% positive</div>
+        </div>
+      </div>
+
+      <div class="section-card" id="alarm-card" style="display:none; border-color: #ef4444;">
+        <div class="section-title">🛑 Sending paused</div>
+        <div id="alarm-text" style="color: var(--text-muted); margin-top: 0.5rem;"></div>
+      </div>
+
+      <div class="section-card" id="hot-leads-card" style="display:none;">
+        <div class="section-header">
+          <div class="section-title">🔥 Hot Leads: reply to these personally</div>
+        </div>
+        <div id="hot-leads-list"></div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">⚡ Instant Automation Triggers</div>
+        </div>
+        <div class="actions-bar">
+          <button class="btn" onclick="triggerBot('leadgen')">🎯 Find New Leads</button>
+          <button class="btn btn-emerald" onclick="triggerBot('email')">✉️ Send Outreach Emails</button>
+          <button class="btn btn-purple" onclick="triggerBot('social')">📱 Draft Social Post</button>
+          <button class="btn btn-secondary" onclick="triggerBot('pipeline')">🚀 Run Full SDR Pipeline</button>
+          <button class="btn btn-secondary" onclick="triggerBot('all')">⚡ Run All Bots</button>
+        </div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">📋 Real-Time System Activity Feed</div>
+          <button class="btn btn-secondary" onclick="fetchLogs()">🔄 Refresh Logs</button>
+        </div>
+        <div class="log-feed" id="log-container">
+          <!-- Logs populate dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <!-- LEADS TAB -->
+    <div id="tab-leads" class="tab-content">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">📊 Leads Database</div>
+          <div class="actions-bar">
+            <button class="btn btn-secondary" onclick="triggerBot('leadgen')">+ Find Leads</button>
+            <a href="/api/export-csv" class="btn btn-emerald" style="text-decoration:none;">📥 Export CSV</a>
+          </div>
+        </div>
+        <div style="overflow-x: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Contact</th>
+                <th>Fit</th>
+                <th>Studio / Company</th>
+                <th>Email</th>
+                <th>Category</th>
+                <th>Location</th>
+                <th>Source</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="leads-table-body">
+              <!-- Rows populate dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- EMAILS TAB -->
+    <div id="tab-emails" class="tab-content">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">✉️ Outreach Emails</div>
+          <button class="btn btn-emerald" onclick="triggerBot('email')">✉️ Dispatch Outreach Campaign</button>
+        </div>
+        <div style="overflow-x: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Campaign Name</th>
+                <th>Subject Template</th>
+                <th>Sent</th>
+                <th>Opened</th>
+                <th>Clicked</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="campaigns-table-body">
+              <!-- Rows populate dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">📬 Dispatched Email Logs (Click any row to view full email)</div>
+        </div>
+        <div style="overflow-x: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Sent At</th>
+                <th>Recipient Email</th>
+                <th>Subject</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="email-logs-body">
+              <!-- Rows populate dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SOCIAL TAB -->
+    <div id="tab-social" class="tab-content">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">📱 Scheduled Social Threads & Posts</div>
+          <button class="btn btn-purple" onclick="triggerBot('social')">📱 Generate & Schedule Thread</button>
+        </div>
+        <div style="overflow-x: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Platform</th>
+                <th>Topic</th>
+                <th>Scheduled At</th>
+                <th>Status</th>
+                <th>Likes</th>
+                <th>Retweets</th>
+              </tr>
+            </thead>
+            <tbody id="social-table-body">
+              <!-- Rows populate dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETUP TAB -->
+    <div id="tab-setup" class="tab-content">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">⚙️ Connect your email</div>
+        </div>
+        <p style="color: var(--text-muted); margin-bottom: 1.25rem; line-height: 1.6;">
+          To dispatch <strong>100% real cold emails</strong> from your own Gmail or custom domain email (e.g., <code>you@yourdomain.com</code>), run <code>sdr setup</code> or add these lines to the <code>.env</code> file in the project folder (it stays private and is never uploaded):
+        </p>
+
+        <h3 style="color: var(--ink); margin-bottom: 0.5rem; font-size: 1rem;">1. Hostinger (or any domain mailbox)</h3>
+        <div class="code-box">SMTP_HOST=smtp.hostinger.com
+SMTP_PORT=465
+SMTP_USER=hello@yourdomain.com
+SMTP_PASS=your-mailbox-password
+IMAP_HOST=imap.hostinger.com
+IMAP_PORT=993</div>
+
+        <h3 style="color: var(--ink); margin: 1.5rem 0 0.5rem; font-size: 1rem;">2. Gmail / Google Workspace</h3>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.5rem;">
+          Use a 16-character App Password from <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener" style="color:var(--brand);">myaccount.google.com/apppasswords</a> (2-Step Verification must be on).
+        </p>
+        <div class="code-box">SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_USER=you@yourdomain.com
+SMTP_PASS=your-16-char-app-password
+IMAP_HOST=imap.gmail.com
+IMAP_PORT=993</div>
+
+        <h3 style="color: var(--ink); margin: 1.5rem 0 0.5rem; font-size: 1rem;">3. Optional extras</h3>
+        <div class="code-box">SDR_ALERT_EMAIL=where-hot-lead-alerts-go@yourdomain.com
+ANTHROPIC_API_KEY=your-claude-key   # AI openers + reply reading ([ai] enabled = true)</div>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 1rem;">
+          Check your login any time with <code>python3 check_email_login.py</code> (sends nothing).
+        </p>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- EMAIL PREVIEW MODAL POPUP -->
+  <div id="email-modal" class="modal-overlay" onclick="closeEmailModal(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title">✉️ Sent Email Inspection</div>
+        <button class="modal-close" onclick="closeEmailModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="email-meta-box">
+          <div class="email-meta-row">
+            <span class="email-meta-label">To:</span>
+            <span class="email-meta-val" id="modal-to-email">...</span>
+          </div>
+          <div class="email-meta-row">
+            <span class="email-meta-label">Subject:</span>
+            <span class="email-meta-val" id="modal-subject">...</span>
+          </div>
+          <div class="email-meta-row">
+            <span class="email-meta-label">Sent At:</span>
+            <span class="email-meta-val" id="modal-sent-at" style="color: var(--text-muted); font-size: 0.8rem;">...</span>
+          </div>
+          <div class="email-meta-row">
+            <span class="email-meta-label">Status:</span>
+            <span class="badge badge-emerald" id="modal-status">sent</span>
+          </div>
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem; font-weight: 600;">EMAIL MESSAGE CONTENT:</div>
+        <div class="email-content-box" id="modal-body-text">
+          <!-- Full email message text renders here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function esc(value) {
+      return String(value ?? '').replace(/[&<>"']/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch]));
+    }
+
+    // With a dashboard password, the server wants this session's CSRF token on every POST.
+    // It's fetched from /api/session (the session cookie itself is HttpOnly, never readable here).
+    let csrfToken = '';
+    let redirectingToLogin = false;
+
+    async function api(path, options = {}) {
+      const method = (options.method || 'GET').toUpperCase();
+      const headers = Object.assign({}, options.headers || {});
+      if (method !== 'GET' && csrfToken) headers['X-CSRF-Token'] = csrfToken;
+      const res = await fetch(path, Object.assign({}, options, { method, headers, credentials: 'same-origin' }));
+      if (res.status === 401) {
+        // Session expired (12 h) or the dashboard restarted: sign in again.
+        if (!redirectingToLogin) { redirectingToLogin = true; window.location.href = '/login'; }
+        throw new Error('Sign-in required');
+      }
+      return res;
+    }
+
+    async function loadSession() {
+      try {
+        const res = await api('/api/session');
+        const s = await res.json();
+        csrfToken = s.csrf_token || '';
+        document.getElementById('logout-link').hidden = !(s.auth_required && s.logged_in);
+      } catch (err) {
+        console.error('Failed to load session:', err);
+      }
+    }
+    const sessionReady = loadSession();
+
+    // "Update available" pill, fed by data/update_status.json (written by `sdr update` / the weekly check).
+    async function loadUpdateStatus() {
+      try {
+        const res = await api('/api/update-status');
+        const u = await res.json();
+        const pill = document.getElementById('update-pill');
+        if (!u.available || !u.latest) { pill.hidden = true; return; }
+        const latest = String(u.latest).replace(/^v/, '');
+        document.getElementById('update-pill-version').textContent = 'v' + latest;
+        pill.title = 'Version ' + latest + ' is ready (you have ' + (u.current || '?') +
+          '). Click to copy the command, then run it in your terminal: sdr update';
+        pill.hidden = false;
+      } catch (err) {
+        console.error('Failed to load update status:', err);
+      }
+    }
+
+    async function copyUpdateCommand() {
+      const label = document.getElementById('update-pill-text');
+      const feedback = document.getElementById('update-pill-feedback');
+      try {
+        await navigator.clipboard.writeText('sdr update');
+        feedback.textContent = 'Copied: sdr update';
+      } catch (err) {
+        feedback.textContent = 'Run: sdr update';  // clipboard blocked: say it instead
+      }
+      label.hidden = true;
+      feedback.hidden = false;
+      setTimeout(() => { feedback.hidden = true; label.hidden = false; }, 2500);
+    }
+
+    // Colours + logo come from [email_design] in config/profile.toml, so every install shows its own brand.
+    function applyBrand(p) {
+      const d = p.design || {};
+      const isHex = v => /^#[0-9a-fA-F]{6}$/.test(v || '');
+      const root = document.documentElement.style;
+      [['brand_color', '--brand'], ['heading_color', '--ink'], ['text_color', '--text'], ['background', '--bg']]
+        .forEach(([key, cssVar]) => { if (isHex(d[key])) root.setProperty(cssVar, d[key]); });
+      const icon = document.getElementById('brand-icon');
+      if (/^https:\/\//.test(d.logo_url || '')) {
+        const img = document.createElement('img');
+        img.src = d.logo_url;
+        img.alt = p.product_name + ' logo';
+        img.onerror = () => { icon.innerHTML = '<span>' + esc((p.product_name || '?')[0]) + '</span>'; };
+        icon.replaceChildren(img);
+        let favicon = document.querySelector("link[rel='icon']");
+        if (!favicon) { favicon = document.createElement('link'); favicon.rel = 'icon'; document.head.appendChild(favicon); }
+        favicon.href = d.logo_url;
+      } else {
+        document.getElementById('brand-initial').innerText = (p.product_name || '?')[0];
+      }
+    }
+
+    async function loadProfile() {
+      try {
+        const res = await api('/api/profile');
+        const p = await res.json();
+        if (!p.configured) return;
+        applyBrand(p);
+        document.getElementById('brand-name').innerText = p.product_name;
+        const link = document.getElementById('brand-link');
+        link.href = p.website;
+        link.innerText = p.website.replace(/^https?:\/\//, '').replace(/\/$/, '') + ' ↗';
+        document.getElementById('brand-tagline').innerText =
+          (p.design && p.design.tagline ? p.design.tagline + ' · ' : '') + 'SDR Control Center';
+        document.title = p.product_name + ' · SDR Control Center';
+        document.getElementById('stat-leads-subtext').innerText = p.ideal_client + 's';
+        const chips = [p.ideal_client].concat(p.cities.slice(0, 6));
+        document.getElementById('target-chips-list').innerHTML =
+          chips.map((c, i) => `<span class="chip">${i === 0 ? '🎯' : '📍'} ${esc(c)}</span>`).join('');
+      } catch (err) {
+        console.error('Failed to load profile:', err);
+      }
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      event.target.classList.add('active');
+      document.getElementById('tab-' + tabId).classList.add('active');
+    }
+
+    async function fetchStats() {
+      try {
+        const res = await api('/api/pipeline');
+        const p = await res.json();
+        document.getElementById('stat-leads').innerText = p.leads_found || 0;
+        document.getElementById('stat-contacted').innerText = p.contacted || 0;
+        document.getElementById('stat-sequence').innerText =
+          `In sequence: ${p.in_sequence || 0} · ${p.disqualified || 0} rejected`;
+        document.getElementById('stat-reply-rate').innerText = (p.reply_rate || 0) + '%';
+        document.getElementById('stat-replied').innerText = `${p.replied || 0} real replies · ${p.sent_today || 0} sent today`;
+        document.getElementById('stat-hot').innerText = p.positive || 0;
+        document.getElementById('stat-positive-rate').innerText = (p.positive_rate || 0) + '% positive';
+        document.getElementById('alarm-card').style.display = p.bounce_alarm ? 'block' : 'none';
+        document.getElementById('alarm-text').innerText = p.bounce_alarm || '';
+        const hot = p.hot_leads || [];
+        document.getElementById('hot-leads-card').style.display = hot.length ? 'block' : 'none';
+        document.getElementById('hot-leads-list').innerHTML = hot.map(h => `
+          <div class="log-item">
+            <div><strong>${esc(h.company)}</strong> &lt;${esc(h.email)}&gt; · ${esc(h.intent)}
+              <div style="color: var(--text-muted);">${esc((h.excerpt || '').slice(0, 160))}</div></div>
+            <div style="color: var(--text-muted); font-size: 0.75rem;">${esc((h.received_at || '').slice(0, 10))}</div>
+          </div>`).join('');
+      } catch (err) {
+        console.error('Failed to fetch pipeline:', err);
+      }
+    }
+
+    async function fetchLogs() {
+      try {
+        const res = await api('/api/logs');
+        const data = await res.json();
+        const container = document.getElementById('log-container');
+        container.innerHTML = '';
+        (data.logs || []).forEach(log => {
+          const item = document.createElement('div');
+          item.className = 'log-item';
+          item.innerHTML = `
+            <div>
+              <strong>[${esc(log.bot_name)}]</strong> ${esc(log.action)} - <span style="color: var(--text-muted);">${esc(log.details)}</span>
+            </div>
+            <div style="color: var(--text-muted); font-size: 0.75rem;">${esc(log.timestamp.substring(0, 19).replace('T', ' '))}</div>
+          `;
+          container.appendChild(item);
+        });
+      } catch (err) {
+        console.error('Failed to fetch logs:', err);
+      }
+    }
+
+    async function fetchLeads() {
+      try {
+        const res = await api('/api/leads');
+        const data = await res.json();
+        const tbody = document.getElementById('leads-table-body');
+        tbody.innerHTML = '';
+        (data.leads || []).forEach(l => {
+          const tr = document.createElement('tr');
+          const props = (l.enriched_info && l.enriched_info.lead_source) || '-';
+          tr.innerHTML = `
+            <td>#${esc(l.id)}</td>
+            <td><strong>${esc(l.first_name || '-')}</strong></td>
+            <td title="${esc((l.fit_reasons_list || []).join(' · '))}">${esc(l.fit_score ?? '-')}</td>
+            <td>${esc(l.company)}</td>
+            <td><code>${esc(l.email)}</code></td>
+            <td><span class="badge badge-purple">${esc(l.category)}</span></td>
+            <td>${esc(l.location)}</td>
+            <td>${esc(props)}</td>
+            <td><span class="badge badge-emerald">${esc(l.status)}</span></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        console.error('Failed to fetch leads:', err);
+      }
+    }
+
+    async function fetchEmails() {
+      try {
+        const res = await api('/api/emails');
+        const data = await res.json();
+        
+        const campBody = document.getElementById('campaigns-table-body');
+        campBody.innerHTML = '';
+        (data.campaigns || []).forEach(c => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><strong>${esc(c.campaign_name)}</strong></td>
+            <td>${esc(c.subject)}</td>
+            <td>${esc(c.sent_count)}</td>
+            <td>${esc(c.opened_count)}</td>
+            <td>${esc(c.clicked_count)}</td>
+            <td><span class="badge badge-emerald">${esc(c.status)}</span></td>
+          `;
+          campBody.appendChild(tr);
+        });
+
+        window.cachedEmailLogs = data.logs || [];
+        const logsBody = document.getElementById('email-logs-body');
+        logsBody.innerHTML = '';
+        (data.logs || []).forEach((l, idx) => {
+          const tr = document.createElement('tr');
+          tr.className = 'clickable-row';
+          tr.title = 'Click to inspect full email content';
+          tr.onclick = () => openEmailModal(idx);
+          tr.innerHTML = `
+            <td>${esc(l.sent_at.substring(0, 19).replace('T', ' '))}</td>
+            <td><code>${esc(l.lead_email)}</code></td>
+            <td>${esc(l.subject)}</td>
+            <td><span class="badge badge-blue">${esc(l.status)}</span></td>
+            <td><button class="btn btn-secondary" style="padding: 0.25rem 0.65rem; font-size: 0.75rem;" onclick="event.stopPropagation(); openEmailModal(${idx})">👁️ View Email</button></td>
+          `;
+          logsBody.appendChild(tr);
+        });
+      } catch (err) {
+        console.error('Failed to fetch emails:', err);
+      }
+    }
+
+    function openEmailModal(index) {
+      const email = (window.cachedEmailLogs || [])[index];
+      if (!email) return;
+      document.getElementById('modal-to-email').innerText = email.lead_email;
+      document.getElementById('modal-subject').innerText = email.subject;
+      document.getElementById('modal-sent-at').innerText = email.sent_at.substring(0, 19).replace('T', ' ');
+      document.getElementById('modal-status').innerText = email.status;
+      document.getElementById('modal-body-text').innerText = email.body || 'No content recorded.';
+      document.getElementById('email-modal').style.display = 'flex';
+    }
+
+    function closeEmailModal(event) {
+      if (event && event.target !== event.currentTarget && !event.target.classList.contains('modal-close')) return;
+      document.getElementById('email-modal').style.display = 'none';
+    }
+
+    async function fetchSocial() {
+      try {
+        const res = await api('/api/social');
+        const data = await res.json();
+        const tbody = document.getElementById('social-table-body');
+        tbody.innerHTML = '';
+        (data.posts || []).forEach(p => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><strong>${esc(p.platform)}</strong></td>
+            <td>${esc(p.topic)}</td>
+            <td>${esc(p.scheduled_at.substring(0, 19).replace('T', ' '))}</td>
+            <td><span class="badge badge-purple">${esc(p.status)}</span></td>
+            <td>❤️ ${esc(p.likes)}</td>
+            <td>🔁 ${esc(p.retweets)}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        console.error('Failed to fetch social:', err);
+      }
+    }
+
+    async function triggerBot(task) {
+      try {
+        await sessionReady;
+        const res = await api('/api/run-bot', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ task })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          alert(data.message || 'Could not start that task. Reload the page and try again.');
+          return;
+        }
+        refreshAllData();
+      } catch (err) {
+        if (!redirectingToLogin) alert('Bot execution failed: ' + err);
+      }
+    }
+
+    function refreshAllData() {
+      fetchStats();
+      fetchLogs();
+      fetchLeads();
+      fetchEmails();
+      fetchSocial();
+    }
+
+    function manualRefreshDashboard() {
+      const btn = document.getElementById('global-refresh-btn');
+      if (btn) {
+        btn.classList.add('spinning');
+        setTimeout(() => btn.classList.remove('spinning'), 750);
+      }
+      refreshAllData();
+    }
+
+    loadProfile();
+    loadUpdateStatus();
+    refreshAllData();
+    setInterval(refreshAllData, 5000);
+  </script>
+
+</body>
+</html>

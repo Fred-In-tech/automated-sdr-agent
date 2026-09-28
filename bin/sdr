@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# `sdr` - the command-line launcher for Automated SDR by Fred (macOS / Linux).
+#
+# The installer symlinks this file into ~/.local/bin. It follows that link back to the real
+# install folder, runs cli.py with the project's own .venv Python (so the right requirements
+# are always used, whatever `python3` means in this shell) and passes every argument through.
+# It does not change folder, so relative paths such as
+# `sdr setup --answers setup-answers.toml` mean what the user expects.
+set -eu
+
+source_path="${BASH_SOURCE[0]}"
+while [ -L "$source_path" ]; do
+    link_dir="$(cd -P "$(dirname "$source_path")" >/dev/null 2>&1 && pwd)"
+    source_path="$(readlink "$source_path")"
+    case "$source_path" in
+        /*) ;;
+        *) source_path="$link_dir/$source_path" ;;
+    esac
+done
+bin_dir="$(cd -P "$(dirname "$source_path")" >/dev/null 2>&1 && pwd)"
+root="$(dirname "$bin_dir")"
+
+if [ -x "$root/.venv/bin/python" ]; then
+    py="$root/.venv/bin/python"
+elif command -v python3 >/dev/null 2>&1; then
+    py="$(command -v python3)"
+else
+    echo "sdr: Python 3.11+ not found. Re-run the installer, or create $root/.venv" >&2
+    exit 1
+fi
+
+exec "$py" "$root/cli.py" "$@"
