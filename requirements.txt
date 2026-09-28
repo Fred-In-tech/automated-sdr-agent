@@ -13,7 +13,7 @@ questionary>=2.0
 urllib3>=2.7
 idna>=3.15
 certifi>=2024.7.4
-soupsieve>=2.9
+soupsieve>=2.10
 pygments>=2.20
 
 # Optional: Claude AI personalisation + reply triage ([ai] enabled = true in config/profile.toml)
