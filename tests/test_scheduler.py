@@ -7,6 +7,7 @@ fake runner.py / cli.py files, so no bot ever runs and nothing is emailed.
 
 import io
 import os
+import posixpath
 import shutil
 import subprocess
 import sys
@@ -427,7 +428,7 @@ class TestCronInstall(InstallTestCase):
         self.assertFalse(schedule_status(root_dir=self.root, runner=fake, system="posix")["installed"])
 
     def test_status_sees_legacy_lines(self):
-        script = os.path.join(self.root, "run_cron_pipeline.sh")
+        script = posixpath.join(self.root, "run_cron_pipeline.sh")   # cron paths use "/" even when simulated on Windows
         fake = FakeRunner(crontab=f'0 9,14 * * * "{script}"\n')
         status = schedule_status(root_dir=self.root, runner=fake, system="posix")
         self.assertTrue(status["installed"])
