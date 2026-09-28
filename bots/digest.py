@@ -24,7 +24,7 @@ def send_daily_digest(profile: dict, force: bool = False) -> dict:
     """Email the pipeline report to [sdr] alert_email (or your sending inbox), once per day."""
     if not profile.get("sdr", {}).get("daily_digest", True) and not force:
         return {"status": "skipped", "reason": "daily_digest is off"}
-    if digest_sent_today() and not force:
+    if not force and digest_sent_today():  # --force never needs the database
         return {"status": "skipped", "reason": "already sent today"}
     load_env_file()
     to = profile.get("sdr", {}).get("alert_email") or os.getenv("SDR_ALERT_EMAIL") or os.getenv("SMTP_USER")
