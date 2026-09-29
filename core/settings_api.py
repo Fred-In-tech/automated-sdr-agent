@@ -51,6 +51,9 @@ SECRET_HELP = {
     "audience.brave_api_key_env": "Free key from https://brave.com/search/api/. It stays on this computer.",
     "security.dashboard_password_env": "Only a scrambled version (hash) is saved.",
 }
+# Settings that are often more than one line (a sign-off with the business name under it, a
+# postal address). They get a multi-line box: a one-line box silently joins the lines.
+MULTILINE_FIELDS = ("email.sign_off", "business.postal_address")
 ONLY_FOR_OTHER = ("email.smtp_host", "email.smtp_port", "email.imap_host", "email.imap_port")
 SECRET_ENV_PREFIX = "SDR_FORM_SECRET_"   # names inside the one-off environment handed to the setup code
 MAX_MESSAGE_LINES = 12
@@ -83,6 +86,8 @@ def _field(key: str, state: dict, env: dict) -> dict:
     field.pop("default", None)
     if key in ONLY_FOR_OTHER:
         field["only_for_provider"] = "other"
+    if key in MULTILINE_FIELDS or (isinstance(value, str) and "\n" in value):
+        field["multiline"] = True
     if key == "schedule.install":
         field["label"] = "Run automatically on this schedule"
         field["help"] = "When on, it runs by itself and emails real prospects at the times above."

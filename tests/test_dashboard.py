@@ -764,6 +764,7 @@ class TestSettingsPage(DashboardServerCase):
         self.assertEqual(status, 200)
         self.assertIn("javascript", headers["Content-Type"])
         self.assertNotIn(b"innerHTML", body)
+        self.assertIn(b"field.multiline", body)   # two-line sign-offs get a textarea
 
 
 class TestSettingsNeedSignIn(DashboardServerCase):

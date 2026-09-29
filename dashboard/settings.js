@@ -7,6 +7,7 @@
 
   const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   let openSection = null;
+  let lastResult = null;   // {section, ok, messages}: shown again after the page redraws
 
   function el(tag, attrs, children) {
     const node = document.createElement(tag);
@@ -54,6 +55,12 @@
       return el('input', { id, type: 'password', class: 'set-input', autocomplete: 'new-password',
                            'data-key': field.key, 'data-kind': 'secret',
                            placeholder: field.is_set ? 'Saved. Leave empty to keep it.' : 'Not set yet' });
+    }
+    if (field.multiline) {
+      // a one-line box would silently join "Freddy" and "MyProposer" into "FreddyMyProposer"
+      const area = el('textarea', { id, rows: 3, class: 'set-input', 'data-key': field.key, 'data-kind': 'text' });
+      area.value = value ?? '';
+      return area;
     }
     const input = el('input', { id, class: 'set-input', 'data-key': field.key,
                                 type: field.type === 'int' ? 'number' : 'text',
@@ -128,6 +135,7 @@
     }
     if (data.success) {
       openSection = section.name;
+      lastResult = { section: section.name, ok: true, messages: data.messages || ['Saved.'] };
       loadSettings();
       if (typeof refreshAllData === 'function') refreshAllData();
     }
@@ -137,6 +145,12 @@
     const form = el('form', { class: 'set-form', onsubmit: event => event.preventDefault() },
       section.fields.map(fieldRow));
     const status = el('div', { class: 'set-status', role: 'status' });
+    if (lastResult && lastResult.section === section.name) {
+      // the redraw after a save would otherwise wipe the "Saved" confirmation straight away
+      status.className = 'set-status ' + (lastResult.ok ? 'set-ok' : 'set-error');
+      lastResult.messages.forEach(message => status.appendChild(el('div', { text: message })));
+      lastResult = null;
+    }
     const button = el('button', { class: 'btn', type: 'submit', text: 'Save' });
     form.appendChild(el('div', { class: 'set-actions' }, [button, status]));
     form.addEventListener('submit', () => save(section, form, status, button));

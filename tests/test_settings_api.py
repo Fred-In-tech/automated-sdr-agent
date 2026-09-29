@@ -106,6 +106,15 @@ class TestSaving(SettingsCase):
         self.assertTrue(self.field("email.password_env")["is_set"])
         self.assertEqual([item["done"] for item in self.read()["checklist"]][:3], [True, True, True])
 
+    def test_a_two_line_sign_off_gets_a_multi_line_box_and_survives_a_save(self):
+        """"Freddy" over "MyProposer": a one-line box would join them into "FreddyMyProposer"."""
+        self.assertTrue(self.field("email.sign_off")["multiline"])
+        self.assertTrue(self.field("business.postal_address")["multiline"])
+        self.assertNotIn("multiline", self.field("email.from_name"))
+        result = self.save("email", {**self.EMAIL, "email.sign_off": "Sam\nAcme Studio"})
+        self.assertTrue(result["success"], result)
+        self.assertEqual(self.field("email.sign_off")["value"], "Sam\nAcme Studio")
+
     def test_a_refused_login_is_not_saved(self):
         self.login = {"smtp": False, "imap": False, "errors": ["Sending (SMTP): the password was refused."]}
         result = self.save("email", self.EMAIL)

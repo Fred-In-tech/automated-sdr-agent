@@ -9,6 +9,17 @@ forward to one of those tags, and it shows you the notes below before it does.
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-09-29
+
+### Fixed
+
+- **Two-line settings lost their line break on the Settings page.** A sign-off such as
+  "Jamie" with the business name on the line below, or a postal address on several lines,
+  was shown in a one-line box, and saving joined the lines ("JamieAcme"). These settings now
+  get a multi-line box, and any setting that already has more than one line keeps it.
+- **The "Saved" confirmation vanished instantly on the Settings page**, so a save that worked
+  looked like it had done nothing. The result now stays under the Save button.
+
 ## [1.2.0] - 2026-09-29
 
 ### Changed
@@ -129,7 +140,8 @@ computer. It finds your ideal clients, emails them, and handles the replies.
 - The Brave Search key is never sent along on a redirect.
 - Installers install the newest release tag, not unreleased code.
 
-[Unreleased]: https://github.com/Fred-In-tech/automated-sdr-agent/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/Fred-In-tech/automated-sdr-agent/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/Fred-In-tech/automated-sdr-agent/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/Fred-In-tech/automated-sdr-agent/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Fred-In-tech/automated-sdr-agent/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Fred-In-tech/automated-sdr-agent/releases/tag/v1.0.0
