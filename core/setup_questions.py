@@ -186,7 +186,7 @@ BY_KEY = {q.key: q for q in QUESTIONS}
 # confirmations, the login-failure menu...). Answers files may answer them, so the unknown-key
 # check must not reject them; `--print-questions` leaves them out because they need no answer.
 EXTRA_ANSWER_KEYS = frozenset({
-    "setup.existing", "setup.section", "finish.save",
+    "setup.existing", "setup.section", "setup.continue_in", "finish.save",
     "business.use_detected",
     "audience.keep_brave_key", "audience.accept_bing", "audience.cities_ok",
     "email.keep_password", "email.login_failed", "email.code", "email.more_options",

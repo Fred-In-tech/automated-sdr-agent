@@ -97,9 +97,9 @@ def _send_sample(profile: dict, to: str) -> bool:
     return send_sample(profile, to)["sent"]
 
 
-def _start_dashboard(background: bool = False) -> dict:
+def _start_dashboard(background: bool = False, page: str = "") -> dict:
     from dashboard.server import start_dashboard
-    return start_dashboard(open_browser=True, background=background)
+    return start_dashboard(open_browser=True, background=background, page=page)
 
 
 def _find_leads(profile: dict) -> dict:

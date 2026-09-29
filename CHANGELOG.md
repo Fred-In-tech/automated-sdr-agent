@@ -21,8 +21,21 @@ forward to one of those tags, and it shows you the notes below before it does.
 - Imported leads pass the same safeguards as found ones. Anyone already in your leads
   (including people who unsubscribed or bounced) and anyone on your do-not-contact list is
   skipped, and each domain is checked for a working mail server.
+- **A Settings page on the dashboard.** Every setting from `sdr setup` is now a form with a Save
+  button: your business, ideal clients, email style, mailbox, replies, schedule, dashboard
+  password and updates. The mailbox login is checked before it's saved, and passwords are never
+  shown again. It replaces the old "Email Setup" tab.
+- **Finish setup in your browser.** After the first two steps, `sdr setup` asks whether to
+  finish in the browser or in the terminal. The browser opens the Settings page with a
+  checklist of what's left. Nothing can be sent until you connect your mailbox there.
+- The Settings page and setup both remind you that `sdr dashboard` reopens the dashboard.
 - **`sdr resume`** and a **Resume sending** button on the dashboard, to start sending again
   after a bounce-rate pause.
+
+### Fixed
+
+- **Signing in to a password-protected dashboard failed with "403 Forbidden"** in Chrome, Edge
+  and Safari. If you set a dashboard password in 1.0.0, update to sign in again.
 
 ### Changed
 

@@ -650,7 +650,29 @@ class TestInteractive(WizardCase):
             "Business mailing address": "1 Main St, Austin, TX",
             "ideal client": "wedding photographer", "Finish the sentence": "book more weddings",
             "send from": "jamie@acme.example", "6-digit code": "123 456", "Turn the schedule on": "n",
-            "Open your dashboard": "n", "Find your first leads": "y"}
+            "Open your dashboard": "n", "Find your first leads": "y",
+            "Where would you like to finish": "2"}        # 2) here in the terminal
+
+    def test_finishing_in_the_browser_saves_a_safe_profile_and_opens_settings(self):
+        """After the cities question, Enter picks the browser: the rest is forms on the dashboard."""
+        replies = {**self.BASE, "Where would you like to finish": ""}
+        code, out, calls, prompts = self.run_interactive(replies, [])
+        self.assertEqual(code, 0, out)
+        self.assertLessEqual(len(prompts), 13)                    # short: the promise of this path
+        self.assertNotIn("[Step 3/7]", out)
+        self.assertIn("sdr dashboard", out)                       # how to reopen it
+        self.assertEqual(called(calls, "start_dashboard")[0][2], {"background": False, "page": "#settings"})
+        self.assertEqual(called(calls, "check_login") + called(calls, "install_schedule"), [])
+        profile = self.profile()
+        self.assertEqual(profile["targeting"]["ideal_client"], "wedding photographer")
+        self.assertEqual(profile["sender"]["sign_off"], "Acme")    # placeholder until Settings asks
+        self.assertFalse(os.path.exists(self.env_path) and read_env_file(self.env_path).get("SMTP_PASS"))
+
+    def test_answers_files_are_never_offered_the_browser(self):
+        code, out, calls = self.run_answers(ANSWERS)
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("Where would you like to finish", out)
+        self.assertEqual(called(calls, "start_dashboard"), [])
 
     def test_full_setup_with_defaults(self):
         code, out, calls, prompts = self.run_interactive(self.BASE, [SECRET, DASH_SECRET, DASH_SECRET])
@@ -671,7 +693,7 @@ class TestInteractive(WizardCase):
         self.assertEqual(len(called(calls, "send_sample")), 1)
         self.assertEqual(len(called(calls, "find_leads")), 1)
         self.assertEqual(called(calls, "install_schedule"), [])
-        self.assertLessEqual(len(prompts), 30)
+        self.assertLessEqual(len(prompts), 31)   # the long way round; the browser path is the short one
 
     def test_failed_login_can_be_skipped(self):
         deps = fake_deps(check_login={"smtp": False, "imap": False, "errors": ["The password was refused."]})

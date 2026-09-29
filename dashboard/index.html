@@ -164,6 +164,34 @@
     .code-box { background: var(--ink); border-radius: 10px; padding: 1rem; font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
                 font-size: 0.83rem; color: #BFDBFE; white-space: pre-wrap; overflow-x: auto; }
 
+    /* Settings tab */
+    .set-section { border: 1px solid var(--border); border-radius: 12px; margin-top: 0.75rem; background: var(--card); }
+    .set-section[open] { border-color: var(--brand-line); box-shadow: 0 0 0 3px var(--brand-soft); }
+    .set-section summary { cursor: pointer; padding: 0.9rem 1.1rem; display: flex; flex-wrap: wrap; gap: 0.2rem 0.75rem; align-items: baseline; }
+    .set-title { font-weight: 700; color: var(--ink); }
+    .set-summary, .set-help { color: var(--muted); font-size: 0.84rem; line-height: 1.45; }
+    .set-form { padding: 0.25rem 1.1rem 1.1rem; display: grid; gap: 0.95rem; max-width: 640px; }
+    .set-row { display: grid; gap: 0.3rem; }
+    .set-row[hidden] { display: none; }
+    .set-row-check { grid-template-columns: auto 1fr; align-items: center; column-gap: 0.6rem; }
+    .set-row-check .set-help { grid-column: 2; }
+    .set-label { font-weight: 600; font-size: 0.9rem; color: var(--ink); }
+    .set-input { width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--border); border-radius: 9px;
+                 font: inherit; color: var(--text); background: var(--bg); }
+    .set-input:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+    .set-days { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .set-day { display: inline-flex; gap: 0.3rem; align-items: center; padding: 0.35rem 0.6rem; border: 1px solid var(--border);
+               border-radius: 8px; font-size: 0.85rem; cursor: pointer; }
+    .set-actions { display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap; }
+    .set-status { font-size: 0.88rem; line-height: 1.5; color: var(--muted); flex: 1; min-width: 200px; }
+    .set-ok { color: var(--success); }
+    .set-error { color: #B42318; }
+    .set-checklist ul { list-style: none; margin-top: 0.75rem; display: grid; gap: 0.5rem; }
+    .set-checklist a { color: var(--ink); font-weight: 600; }
+    .set-done a { color: var(--muted); font-weight: 500; text-decoration: line-through; }
+    .set-tick { display: inline-block; width: 1.4rem; color: var(--success); font-weight: 700; }
+    .set-foot { margin: 1rem 0.25rem; }
+
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
@@ -231,11 +259,11 @@
 
 
   <nav class="nav-tabs">
-    <button class="tab-btn active" onclick="switchTab('overview')">Overview & Triggers</button>
-    <button class="tab-btn" onclick="switchTab('leads')">Leads</button>
-    <button class="tab-btn" onclick="switchTab('emails')">Email Outreach</button>
-    <button class="tab-btn" onclick="switchTab('social')">Social Bot (X)</button>
-    <button class="tab-btn" onclick="switchTab('setup')">Email Setup</button>
+    <button class="tab-btn active" data-tab="overview" onclick="switchTab('overview')">Overview & Triggers</button>
+    <button class="tab-btn" data-tab="leads" onclick="switchTab('leads')">Leads</button>
+    <button class="tab-btn" data-tab="emails" onclick="switchTab('emails')">Email Outreach</button>
+    <button class="tab-btn" data-tab="social" onclick="switchTab('social')">Social Bot (X)</button>
+    <button class="tab-btn" data-tab="settings" onclick="switchTab('settings')">⚙️ Settings</button>
   </nav>
 
   <main>
@@ -418,42 +446,9 @@
       </div>
     </div>
 
-    <!-- SETUP TAB -->
-    <div id="tab-setup" class="tab-content">
-      <div class="section-card">
-        <div class="section-header">
-          <div class="section-title">⚙️ Connect your email</div>
-        </div>
-        <p style="color: var(--text-muted); margin-bottom: 1.25rem; line-height: 1.6;">
-          To dispatch <strong>100% real cold emails</strong> from your own Gmail or custom domain email (e.g., <code>you@yourdomain.com</code>), run <code>sdr setup</code> or add these lines to the <code>.env</code> file in the project folder (it stays private and is never uploaded):
-        </p>
-
-        <h3 style="color: var(--ink); margin-bottom: 0.5rem; font-size: 1rem;">1. Hostinger (or any domain mailbox)</h3>
-        <div class="code-box">SMTP_HOST=smtp.hostinger.com
-SMTP_PORT=465
-SMTP_USER=hello@yourdomain.com
-SMTP_PASS=your-mailbox-password
-IMAP_HOST=imap.hostinger.com
-IMAP_PORT=993</div>
-
-        <h3 style="color: var(--ink); margin: 1.5rem 0 0.5rem; font-size: 1rem;">2. Gmail / Google Workspace</h3>
-        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.5rem;">
-          Use a 16-character App Password from <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener" style="color:var(--brand);">myaccount.google.com/apppasswords</a> (2-Step Verification must be on).
-        </p>
-        <div class="code-box">SMTP_HOST=smtp.gmail.com
-SMTP_PORT=465
-SMTP_USER=you@yourdomain.com
-SMTP_PASS=your-16-char-app-password
-IMAP_HOST=imap.gmail.com
-IMAP_PORT=993</div>
-
-        <h3 style="color: var(--ink); margin: 1.5rem 0 0.5rem; font-size: 1rem;">3. Optional extras</h3>
-        <div class="code-box">SDR_ALERT_EMAIL=where-hot-lead-alerts-go@yourdomain.com
-ANTHROPIC_API_KEY=your-claude-key   # AI openers + reply reading ([ai] enabled = true)</div>
-        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 1rem;">
-          Check your login any time with <code>python3 check_email_login.py</code> (sends nothing).
-        </p>
-      </div>
+    <!-- SETTINGS TAB (built by settings.js from /api/settings) -->
+    <div id="tab-settings" class="tab-content">
+      <div id="settings-root"><div class="section-card">Loading your settings...</div></div>
     </div>
 
   </main>
@@ -516,6 +511,7 @@ ANTHROPIC_API_KEY=your-claude-key   # AI openers + reply reading ([ai] enabled =
     </div>
   </div>
 
+  <script src="/settings.js"></script>
   <script>
     function esc(value) {
       return String(value ?? '').replace(/[&<>"']/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch]));
@@ -627,11 +623,22 @@ ANTHROPIC_API_KEY=your-claude-key   # AI openers + reply reading ([ai] enabled =
     }
 
     function switchTab(tabId) {
+      const button = document.querySelector('.tab-btn[data-tab="' + tabId + '"]');
+      const panel = document.getElementById('tab-' + tabId);
+      if (!button || !panel) return;
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-      event.target.classList.add('active');
-      document.getElementById('tab-' + tabId).classList.add('active');
+      button.classList.add('active');
+      panel.classList.add('active');
+      history.replaceState(null, '', tabId === 'overview' ? location.pathname : '#' + tabId);
+      if (tabId === 'settings') loadSettings();
     }
+
+    // "sdr setup" opens the dashboard at #settings to finish setting up in the browser.
+    window.addEventListener('DOMContentLoaded', () => {
+      const wanted = location.hash.replace('#', '').split('-')[0];
+      if (wanted) switchTab(wanted);
+    });
 
     async function fetchStats() {
       try {

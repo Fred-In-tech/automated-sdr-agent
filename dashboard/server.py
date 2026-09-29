@@ -62,6 +62,7 @@ PROBE_TIMEOUT_SECONDS = 0.5
 MAX_PROBE_BYTES = 4 * 1024  # a probe answer is a short JSON object; whatever else answers isn't ours
 UPDATE_STATUS_PATH = os.path.join(BASE_DIR, "data", "update_status.json")
 INDEX_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "index.html")
+SETTINGS_SCRIPT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "settings.js")
 
 CONTENT_SECURITY_POLICY = "; ".join((
     "default-src 'self'",  # also covers fonts: the pages use the system font stack, nothing hosted elsewhere
@@ -76,7 +77,10 @@ SECURITY_HEADERS = {
     "Content-Security-Policy": CONTENT_SECURITY_POLICY,
     "X-Frame-Options": "DENY",
     "X-Content-Type-Options": "nosniff",
-    "Referrer-Policy": "no-referrer",
+    # Not "no-referrer": with it browsers send `Origin: null` when the sign-in form is posted,
+    # and the same-origin check then refuses the owner's own login. "same-origin" still tells
+    # other websites nothing.
+    "Referrer-Policy": "same-origin",
 }
 
 _FROM_ENV = object()  # make_server default: read DASHBOARD_PASSWORD_HASH from env/.env
@@ -159,6 +163,8 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
         "/api/update-status": "_api_update_status",
         "/api/export-csv": "_api_export_csv",
         "/api/import-template": "_api_import_template",
+        "/api/settings": "_api_settings",
+        "/settings.js": "_settings_script",
     }
 
     def log_message(self, format, *args):
@@ -403,6 +409,9 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
         if path == IMPORT_PATH:
             self._api_import_leads()
             return
+        if path == "/api/settings":
+            self._api_save_settings()
+            return
         if path == "/api/resume-sending":
             self._api_resume_sending()
             return
@@ -541,6 +550,40 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
     def _api_update_status(self) -> None:
         self._send_json(read_update_status())
 
+    def _api_settings(self) -> None:
+        from core.settings_api import read_settings
+        self._send_json(read_settings())
+
+    def _settings_script(self) -> None:
+        try:
+            with open(SETTINGS_SCRIPT_PATH, "rb") as f:
+                self._send_body(f.read(), "text/javascript; charset=utf-8")
+        except OSError:
+            self.send_error(404, "File Not Found")
+
+    def _api_save_settings(self) -> None:
+        """Save one section of the Settings page (the same code as `sdr setup --section`)."""
+        from core.settings_api import save_section
+        try:
+            payload = json.loads(self.body.decode("utf-8"))
+            section, values = payload["section"], payload["values"]
+        except (UnicodeDecodeError, ValueError, KeyError, TypeError):
+            self._send_json({"success": False, "messages": ["Nothing to save."]}, 400)
+            return
+        result = save_section(section, values)
+        if result.pop("password_changed", False):
+            # Protect the running dashboard at once, instead of asking for a restart.
+            from core import config as core_config
+            from core.setup_toml import read_env_file
+            # read from the file: an environment variable would still hold the old value
+            new_hash = read_env_file(core_config.ENV_PATH).get("DASHBOARD_PASSWORD_HASH")
+            if new_hash:
+                self.server.password_hash = new_hash
+                result["sign_in_again"] = True
+        if result["success"]:
+            log_event("Dashboard", "SaveSettings", "success", f"Saved the {section} settings.")
+        self._send_json(result, 200 if result["success"] else 400)
+
     def _api_import_template(self) -> None:
         from core.lead_import import TEMPLATE_CSV
         self._send_body(TEMPLATE_CSV.encode("utf-8"), "text/csv", 200,
@@ -672,14 +715,15 @@ def _print_started(url: str, password_hash: str | None, background: bool) -> Non
 
 def start_dashboard(port: int = PORT, open_browser: bool = True, background: bool = False, *,
                     ports: Iterable[int] | None = None,
-                    opener: Callable[[str], object] = webbrowser.open) -> dict:
+                    opener: Callable[[str], object] = webbrowser.open, page: str = "") -> dict:
     """Open the dashboard, starting it first unless this install's dashboard is already running
     on 8080-8088 (anything else on those ports is skipped, not opened).
 
     background=False blocks until Ctrl+C (what `sdr dashboard` wants). background=True serves
     from a daemon thread and returns at once; it stops when this process exits, or call
     result["server"].shutdown(). Returns {"url", "port", "already_running", "server"}.
-    `ports`/`opener` exist for tests. Raises DashboardUnavailable if every port is taken.
+    `page` is the tab the browser opens on ("#settings"). `ports`/`opener` exist for tests.
+    Raises DashboardUnavailable if every port is taken.
     """
     candidates = list(ports) if ports is not None else [port] + [p for p in DEFAULT_PORTS if p != port]
     token = ensure_instance_token()
@@ -688,7 +732,7 @@ def start_dashboard(port: int = PORT, open_browser: bool = True, background: boo
         url = _url(running)
         print(f"\n  The dashboard is already running: {url}\n")
         if open_browser:
-            _open(opener, url)
+            _open(opener, url + page)
         return {"url": url, "port": running, "already_running": True, "server": None}
 
     init_db()
@@ -703,10 +747,10 @@ def start_dashboard(port: int = PORT, open_browser: bool = True, background: boo
     if background:
         threading.Thread(target=httpd.serve_forever, name="sdr-dashboard", daemon=True).start()
         if open_browser:
-            _open(opener, url)
+            _open(opener, url + page)
         return {**result, "server": httpd}
     if open_browser:
-        _open(opener, url)  # the socket is already listening, so the browser just queues
+        _open(opener, url + page)  # the socket is already listening, so the browser just queues
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

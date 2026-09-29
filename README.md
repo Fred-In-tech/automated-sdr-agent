@@ -143,9 +143,19 @@ example `ln -s ~/automated-sdr/bin/sdr ~/.local/bin/sdr`. With the environment a
 
 ## The 5-minute setup
 
-`sdr setup` asks short questions in 7 steps. Most questions come with a suggestion you can accept
-with Enter; you type your website, mailing address, ideal client, pitch, cities and mailbox login
-yourself. Arrow keys pick from menus.
+`sdr setup` starts with two short steps only you can answer: your business and your ideal
+clients. Then it asks where you'd like to finish:
+
+- **In your browser (easiest).** Your dashboard opens on its **Settings** page, with a checklist
+  of what's left: connect your mailbox, set a password, turn on the schedule. Everything is a
+  form with a Save button.
+- **Here in the terminal.** The five remaining steps, below.
+
+Closed the dashboard by mistake? Type `sdr dashboard` to open it again. You can change any
+setting later on the same Settings page.
+
+Most questions come with a suggestion you can accept with Enter; you type your website, mailing
+address, ideal client, pitch, cities and mailbox login yourself. Arrow keys pick from menus.
 
 | Step | What it asks |
 |---|---|
@@ -161,8 +171,9 @@ You'll see a summary and "Save these settings?". After saving it offers to **sen
 email to yourself**, **open your dashboard** and **find your first leads** (that search runs only
 if you say yes, and it emails nobody).
 
-Running `sdr setup` again later lets you change one part, go through everything again, or leave it.
-To jump straight to one part, run `sdr setup --section <name>` with `brand`, `audience`, `style`,
+To change something later, open the dashboard (`sdr dashboard`) and go to **Settings**.
+In the terminal, running `sdr setup` again lets you change one part, go through everything again,
+or leave it. To jump straight to one part, run `sdr setup --section <name>` with `brand`, `audience`, `style`,
 `email`, `replies`, `schedule`, `security` or `updates`. Only that part changes; your hand-edited
 email wording is kept.
 

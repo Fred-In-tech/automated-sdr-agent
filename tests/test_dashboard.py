@@ -519,7 +519,16 @@ class TestSecurityHeaders(DashboardServerCase):
         self.assertNotIn("fonts.", csp)  # no third-party fonts: default-src 'self' covers font-src
         self.assertEqual(headers["X-Frame-Options"], "DENY")
         self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
-        self.assertEqual(headers["Referrer-Policy"], "no-referrer")
+        self.assertEqual(headers["Referrer-Policy"], "same-origin")
+
+    def test_a_browser_that_hides_the_origin_cannot_post(self):
+        """What browsers sent under the old no-referrer policy: refused, which is why the policy
+        changed (the owner's own sign-in form was being turned away)."""
+        status, _h, _b = self.post_form("/login", {"password": PASSWORD}, {"Origin": "null"})
+        self.assertEqual(status, 403)
+        status, _h, _b = self.post_form("/login", {"password": PASSWORD},
+                                        {"Origin": f"http://localhost:{self.port}"})
+        self.assertEqual(status, 303)
 
     def test_every_kind_of_response_carries_security_headers(self):
         token = self.login()
@@ -701,6 +710,72 @@ class TestImportNeedsSignIn(DashboardServerCase):
         self.assertEqual(status, 403)
 
 
+class TestSettingsPage(DashboardServerCase):
+    password = None
+
+    def setUp(self):
+        super().setUp()
+        self.env_path = os.path.join(self.tmp.name, ".env")
+        open(self.env_path, "w").close()
+        extra = [mock.patch.object(config, "ENV_PATH", self.env_path),
+                 mock.patch.dict(os.environ, {}, clear=False)]
+        for p in extra:
+            p.start()
+            self.addCleanup(p.stop)
+
+    def save(self, section: str, values: dict, headers: dict | None = None):
+        status, _h, body = self.post_json("/api/settings", {"section": section, "values": values}, headers)
+        return status, json.loads(body) if body.startswith(b"{") else {}
+
+    def test_settings_are_listed_without_secrets(self):
+        status, data = self.get_json("/api/settings")
+        self.assertEqual(status, 200)
+        self.assertTrue(data["configured"])
+        self.assertEqual(len(data["sections"]), 8)
+        self.assertNotIn("pbkdf2", json.dumps(data))
+
+    def test_saving_a_section_changes_the_profile(self):
+        status, data = self.save("updates", {"updates.mode": "off"})
+        self.assertEqual((status, data["success"]), (200, True), data)
+        self.assertEqual(config.load_profile(config.PROFILE_PATH)["updates"]["mode"], "off")
+
+    def test_a_new_password_protects_the_running_dashboard_at_once(self):
+        with mock.patch("core.setup_steps._hash_password",
+                        lambda password: auth.hash_password(password, iterations=FAST_ITERATIONS)), \
+                mock.patch("core.setup_steps.Deps.hash_password",
+                           staticmethod(lambda password: auth.hash_password(password, iterations=FAST_ITERATIONS))):
+            status, data = self.save("security", {"security.dashboard_password_env": "correct horse battery"})
+        self.assertEqual((status, data["success"], data.get("sign_in_again")), (200, True, True), data)
+        self.assertNotIn("correct horse", json.dumps(data))
+        self.assertEqual(self.get("/api/settings")[0], 401)               # locked straight away
+        token = self.login("correct horse battery")
+        self.assertEqual(self.get_json("/api/settings", self.cookie(token))[0], 200)
+
+    def test_bad_input_is_refused_with_a_sentence(self):
+        status, data = self.save("security", {"security.dashboard_password_env": "short"})
+        self.assertEqual((status, data["success"]), (400, False))
+        self.assertTrue(any("at least 8" in m for m in data["messages"]))
+        self.assertEqual(self.save("nope", {})[0], 400)
+        status, _h, _b = self.post_json("/api/settings", ["not", "an", "object"])
+        self.assertEqual(status, 400)
+
+    def test_the_settings_script_is_served_by_the_dashboard(self):
+        status, headers, body = self.get("/settings.js")
+        self.assertEqual(status, 200)
+        self.assertIn("javascript", headers["Content-Type"])
+        self.assertNotIn(b"innerHTML", body)
+
+
+class TestSettingsNeedSignIn(DashboardServerCase):
+    def test_settings_need_a_session_and_csrf_token(self):
+        self.assertEqual(self.get("/api/settings")[0], 401)
+        self.assertEqual(self.post_json("/api/settings", {"section": "updates", "values": {}})[0], 401)
+        token = self.login()
+        status, _h, _b = self.post_json("/api/settings", {"section": "updates", "values": {"updates.mode": "off"}},
+                                        self.cookie(token))
+        self.assertEqual(status, 403)
+
+
 class TestDashboardPage(unittest.TestCase):
     """Contract between index.html and the server (no browser needed)."""
 
@@ -733,7 +808,8 @@ class TestDashboardPage(unittest.TestCase):
         self.assertNotIn("fonts.g", self.page)
         self.assertNotIn("'Inter'", self.page)
         self.assertIn("system-ui", self.page)
-        self.assertNotIn("<script src=", self.page)  # script-src is 'self' + inline only
+        # script-src is 'self' + inline only: the one script file is served by the dashboard itself
+        self.assertEqual(re.findall(r'<script[^>]*\bsrc="([^"]*)"', self.page), ["/settings.js"])
 
 
 # ── Recognising our own dashboard (`sdr dashboard` port reuse) ──────────────

@@ -277,6 +277,8 @@ including any hand-edited email wording. The old profile is first copied to
 
 ## Changing settings later
 
+- The user can change every setting themselves on the dashboard's **Settings** page
+  (`sdr dashboard`). It runs the same code as the sections below.
 - Re-run one part of the wizard with `sdr setup --section <name>`. The names are `brand`,
   `audience`, `style`, `email`, `replies`, `schedule`, `security` and `updates`. It rewrites only
   the settings that part owns; hand-edited email copy, comments and other sections are kept.
@@ -338,6 +340,7 @@ core/
   setup_sample.py       the sample email (`sdr test-email`)
   cli_home.py           `sdr` home menu;  cli_doctor.py  `sdr doctor`;  cli_import.py  `sdr import`
   lead_import.py        CSV lead import: column matching, safety checks (dashboard + CLI)
+  settings_api.py       the dashboard's Settings page: reads settings, saves a section via the setup code
   tui.py tui_validation.py   terminal UI (banner, prompts, plain fallback, answers files)
   brand_detect.py       reads name/logo/colours from the user's website
   email_checks.py       mail provider presets, SMTP/IMAP login check, verification code
@@ -349,7 +352,7 @@ core/
   db.py                 SQLite (data/automations.db)
   qualify.py intent.py outreach_rules.py email_design.py email_verifier.py ai.py report.py notifications.py
 bots/                   leadgen_pipeline.py (+ lead_store.py), email_marketing.py, inbox_listener.py, digest.py, social_bot.py
-dashboard/              server.py (localhost-only web server) + index.html
+dashboard/              server.py (localhost-only web server) + index.html + settings.js (Settings tab)
 config/                 profile.example.toml (documented template); profile.toml and do_not_contact.txt are the user's own (gitignored)
 data/                   the user's database, logs, backups, update_status.json (gitignored)
 tests/                  offline pytest suite

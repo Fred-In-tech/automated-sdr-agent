@@ -50,6 +50,8 @@ FULL_STEPS = (
     ("When it runs. You can change this any time.", (step_schedule,)),
     ("Last step.", (step_security, step_updates)),
 )
+HANDOFF_AFTER_STEP = 2         # business + ideal clients: the questions only the owner can answer
+SETTINGS_PAGE = "#settings"
 SECTION_STEPS = {
     "brand": (step_business,), "audience": (step_audience,), "style": (step_style,), "email": (step_email,),
     "replies": (step_replies,), "schedule": (step_schedule,), "security": (step_security,),
@@ -166,6 +168,8 @@ def _run_full(ctx: SetupContext, text: str | None, files: _Files, saved: dict) -
         ui.step(number, len(FULL_STEPS), STEP_TITLES[number - 1], hint)
         for step in steps:
             step(ctx)
+        if number == HANDOFF_AFTER_STEP and _wants_browser(ctx):
+            return _finish_in_browser(ctx, text, files, saved)
     ui.raise_missing()
     if ctx.problems:
         for problem in ctx.problems:
@@ -193,6 +197,52 @@ def _run_full(ctx: SetupContext, text: str | None, files: _Files, saved: dict) -
         ui.info(f"Your previous profile is backed up at {backup}")
     _apply_schedule(ctx, profile)
     _finish(ctx, profile)
+    return 0
+
+
+def _wants_browser(ctx: SetupContext) -> bool:
+    """After the questions only the owner can answer, offer the rest as forms in the browser.
+    Only asked of a person at a keyboard: answers files and agents carry on as before."""
+    ui = ctx.ui
+    if ctx.answers_mode or not ui.interactive:
+        return False
+    choice = ui.select("setup.continue_in", "The rest is settings. Where would you like to finish?", [
+        ("browser", "In my browser (easiest)", "Opens your dashboard: forms and buttons, no more typing here"),
+        ("terminal", "Here in the terminal", f"{len(FULL_STEPS) - HANDOFF_AFTER_STEP} more short steps"),
+    ], default="browser")
+    return choice == "browser"
+
+
+def _finish_in_browser(ctx: SetupContext, text: str | None, files: _Files, saved: dict) -> int:
+    """Save what we know with safe defaults (no mailbox login, so nothing can be sent; schedule
+    off) and open the dashboard's Settings page, whose checklist covers what's left."""
+    ui = ctx.ui
+    ui.raise_missing()
+    state = {**ctx.saved, **ctx.a}
+    business = state.get("business.name") or "Your business"
+    for key in ("email.sign_off", "email.from_name"):   # placeholders until the Settings page asks
+        state.setdefault(key, business)
+    profile_text = build_profile_from_answers(state)
+    try:
+        _checked(profile_text)
+    except ValueError as exc:
+        ui.error(str(exc))
+        return 1
+    backup = _backup(files, text)
+    _save(ctx, files, profile_text)
+    saved["done"] = True
+    if backup:
+        ui.info(f"Your previous profile is backed up at {backup}")
+    ui.success("Saved. Your dashboard is opening in your browser.")
+    ui.info("Finish on the Settings page: connect your mailbox, set a password, then turn on the schedule.")
+    ui.info("Nothing is sent until you connect your mailbox.")
+    ui.info(f"Keep this window open while you use the dashboard. Closed it by mistake? Type `{CLI_NAME} dashboard` "
+            f"to open it again.")
+    try:
+        ctx.deps.start_dashboard(background=False, page=SETTINGS_PAGE)
+    except Exception as exc:  # noqa: BLE001
+        ui.warn(f"The dashboard couldn't start ({exc}). Finish here instead with `{CLI_NAME} setup`, "
+                f"or try `{CLI_NAME} dashboard`.")
     return 0
 
 

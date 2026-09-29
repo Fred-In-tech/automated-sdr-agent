@@ -87,7 +87,7 @@ You're the data controller for the leads you collect. Keep the computer's disk e
   after 12 hours. Every change needs a CSRF token, and 5 wrong passwords lock logins for 60
   seconds.
 - Every response carries a strict Content-Security-Policy, `X-Frame-Options: DENY`,
-  `X-Content-Type-Options: nosniff` and `Referrer-Policy: no-referrer`. API responses are never
+  `X-Content-Type-Options: nosniff` and `Referrer-Policy: same-origin`. API responses are never
   cached.
 - It's built for one person on one computer. Don't expose it to the internet with port
   forwarding, tunnels or reverse proxies.
