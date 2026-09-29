@@ -219,6 +219,8 @@ or off, check for updates, run a health check.
 | `sdr social` | Drafts a social post (`--topic`). It never posts anything |
 | `sdr digest` | Emails you the daily digest now (`--force` sends it even if it already went out today) |
 | `sdr export` | Exports your leads to `data/leads_export.csv` |
+| `sdr import FILE` | Imports your own leads from a CSV file with an `email` column, e.g. a file called leads.csv. Sends nothing. Options: `--dry-run` (only check), `--no-verify` (skip the mail-server check), `--template` (print an example file) |
+| `sdr resume` | Starts sending again after a bounce-rate pause. The bounce limit stays the same |
 | `sdr requalify` | Re-scores leads saved before fit scoring existed (`--dry-run` to preview) |
 
 These print their result as JSON. `python3 cli.py <command>` is the same as `sdr <command>`.

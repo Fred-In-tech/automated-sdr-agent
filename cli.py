@@ -357,6 +357,12 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("pipeline", help="Find leads -> email them -> handle replies")
     sub.add_parser("run-all", help="Run every bot in sequence")
     sub.add_parser("export", help="Export leads to data/leads_export.csv")
+    sub.add_parser("resume", help="Start sending again after a bounce-rate pause")
+    importer = sub.add_parser("import", help="Import your own leads from a CSV file (sends nothing)")
+    importer.add_argument("file", nargs="?", help="CSV file with an email column")
+    importer.add_argument("--dry-run", action="store_true", help="Only show what would be imported")
+    importer.add_argument("--no-verify", action="store_true", help="Skip the check that each domain receives email")
+    importer.add_argument("--template", action="store_true", help="Print an example CSV to start from")
     return parser
 
 
@@ -462,6 +468,23 @@ def dispatch(args: argparse.Namespace, ui: UI) -> int:
     if command == "open":
         return cmd_open(ui, args.what)
     from core.db import init_db
+    if command == "resume":
+        from core.outreach_rules import resume_sending
+        profile = load_profile()
+        init_db()
+        if resume_sending(profile):
+            ui.success("Sending resumed. Earlier bounces no longer count; the bounce limit is unchanged, "
+                       "so another bad batch pauses it again.")
+        else:
+            ui.info("Sending isn't paused, so there's nothing to resume.")
+        return 0
+    if command == "import":
+        from core.cli_import import cmd_import
+        if args.template:
+            return cmd_import(ui, None, False, False, True, {})
+        profile = load_profile()
+        init_db()
+        return cmd_import(ui, args.file, args.dry_run, args.no_verify, False, profile)
     init_db()
     _print_json(_legacy(args, ui))
     return 0

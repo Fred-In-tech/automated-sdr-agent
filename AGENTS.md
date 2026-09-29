@@ -311,6 +311,8 @@ including any hand-edited email wording. The old profile is first copied to
 | `sdr version` | Prints the version (`sdr --version` works too) |
 | `sdr requalify` | Re-scores older leads (`--dry-run` to preview) |
 | `sdr export` | Exports leads to `data/leads_export.csv` |
+| `sdr import FILE` | Imports your own leads from a CSV file with an `email` column, e.g. a file called leads.csv. Sends nothing. Options: `--dry-run` (only check), `--no-verify` (skip the mail-server check), `--template` (print an example file) |
+| `sdr resume` | Starts sending again after a bounce-rate pause. The bounce limit stays the same |
 | `sdr digest` | Emails the user their pipeline digest now (`--force` sends it even if it already went out today) |
 | `sdr leadgen` | Finds new leads only (`--count N`). Searches the web |
 | `sdr email` | Emails leads that are due only (`--limit N`). **Emails real prospects** |
@@ -334,7 +336,8 @@ core/
   setup_profile.py      sales and marketing templates; answers -> profile.toml
   setup_toml.py         TOML/.env writers (a --section edits only the keys it owns)
   setup_sample.py       the sample email (`sdr test-email`)
-  cli_home.py           `sdr` home menu;  cli_doctor.py  `sdr doctor`
+  cli_home.py           `sdr` home menu;  cli_doctor.py  `sdr doctor`;  cli_import.py  `sdr import`
+  lead_import.py        CSV lead import: column matching, safety checks (dashboard + CLI)
   tui.py tui_validation.py   terminal UI (banner, prompts, plain fallback, answers files)
   brand_detect.py       reads name/logo/colours from the user's website
   email_checks.py       mail provider presets, SMTP/IMAP login check, verification code

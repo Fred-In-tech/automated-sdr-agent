@@ -8,6 +8,7 @@ from datetime import datetime
 from urllib.parse import urlsplit
 
 from core.config import CONFIG_DIR, render
+from core.product import CLI_NAME
 from core.qualify import root_domain
 
 DO_NOT_CONTACT_PATH = os.path.join(CONFIG_DIR, "do_not_contact.txt")
@@ -55,24 +56,55 @@ def is_do_not_contact(email: str, blocked: set) -> bool:
 
 
 # ── Bounce-rate safety switch ───────────────────────────────────────────
+MIN_BOUNCE_SAMPLE = 10            # fewer first emails than this say nothing about a rate
+RESUME_ACTION = "BounceResume"    # bot_logs action written by `sdr resume`
+
+
 def bounce_alarm(cursor, profile: dict) -> str | None:
     """Stops sending when recent first emails bounce too often (protects your domain).
     Only counts fit-scored leads, so bounces from before qualification existed don't trip it."""
     outreach = profile["outreach"]
     max_rate = float(outreach.get("max_bounce_rate", 5))
     window = int(outreach.get("bounce_check_last", 30))
+    # Only emails sent since the last `sdr resume` count. While paused nothing new is sent, so
+    # without this the same bounces would keep the pause on forever, and the only way out
+    # would be raising the limit, which is the opposite of what a sender should do.
+    resumed = cursor.execute(
+        "SELECT MAX(timestamp) FROM bot_logs WHERE action = ?", (RESUME_ACTION,)).fetchone()[0] or ""
     rows = cursor.execute("""
         SELECT l.status FROM email_logs e JOIN leads l ON l.id = e.lead_id
-        WHERE COALESCE(e.step, 1) = 1 AND l.fit_score > 0 ORDER BY e.id DESC LIMIT ?
-    """, (window,)).fetchall()
-    if len(rows) < 10:
+        WHERE COALESCE(e.step, 1) = 1 AND l.fit_score > 0 AND e.sent_at > ? ORDER BY e.id DESC LIMIT ?
+    """, (resumed, window)).fetchall()
+    if len(rows) < MIN_BOUNCE_SAMPLE:
         return None
     bounced = sum(1 for (status,) in rows if status == "bounced")
     rate = 100.0 * bounced / len(rows)
     if rate > max_rate:
         return (f"Sending paused: {bounced} of the last {len(rows)} first emails bounced ({rate:.0f}% > "
-                f"{max_rate:g}%). Check lead quality, then raise [outreach] max_bounce_rate to resume.")
+                f"{max_rate:g}%). Bounced addresses are already removed. Check where those leads came from, "
+                f"then run `{CLI_NAME} resume` to start sending again.")
     return None
+
+
+def sending_paused(profile: dict) -> str | None:
+    """The bounce pause message when sending is paused right now, else None."""
+    from core.db import get_connection
+    conn = get_connection()
+    try:
+        return bounce_alarm(conn.cursor(), profile)
+    finally:
+        conn.close()
+
+
+def resume_sending(profile: dict) -> bool:
+    """Lift a bounce pause: bounces before this moment stop counting. True when there was a
+    pause to lift. The limit itself stays where it is, so a second bad batch pauses again."""
+    from core.db import log_event
+    alarm = sending_paused(profile)
+    if not alarm:
+        return False
+    log_event("EmailMarketingEngine", RESUME_ACTION, "success", f"Resumed by the owner after: {alarm}")
+    return True
 
 
 # ── Link tracking (UTM) ─────────────────────────────────────────────────

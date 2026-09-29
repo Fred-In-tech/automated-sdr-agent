@@ -636,6 +636,71 @@ class TestDashboardApi(DashboardServerCase):
         self.assertEqual(data["website"], data["product_url"])
 
 
+class TestImportLeads(DashboardServerCase):
+    password = None
+    CSV = "email,first_name,company\nsam@acme.test,Sam,Acme\nnot-an-email,,\n"
+
+    def setUp(self):
+        super().setUp()
+        from core import lead_import
+        self.extra = [mock.patch.object(lead_import, "verify_lead_email", lambda email: (True, "ok")),
+                      mock.patch.object(lead_import, "load_do_not_contact", lambda: set())]
+        for p in self.extra:
+            p.start()
+
+    def tearDown(self):
+        for p in self.extra:
+            p.stop()
+        super().tearDown()
+
+    def leads(self) -> list:
+        return self.get_json("/api/leads")[1]["leads"]
+
+    def test_check_first_then_import(self):
+        status, _h, body = self.post_json("/api/import-leads", {"csv": self.CSV, "dry_run": True})
+        preview = json.loads(body)
+        self.assertEqual((status, preview["imported"], preview["invalid"]), (200, 1, 1))
+        self.assertEqual(self.leads(), [])
+        status, _h, body = self.post_json("/api/import-leads", {"csv": self.CSV})
+        self.assertEqual((status, json.loads(body)["imported"]), (200, 1))
+        leads = self.leads()
+        self.assertEqual([(l["email"], l["status"], l["first_name"]) for l in leads], [("sam@acme.test", "new", "Sam")])
+        self.run_task.assert_not_called()          # importing never starts a send
+        status, _h, body = self.post_json("/api/import-leads", {"csv": self.CSV})
+        self.assertEqual(json.loads(body)["duplicates"], 1)
+
+    def test_bad_requests_get_a_plain_message(self):
+        for payload, fragment in (({}, "Choose a CSV"), ({"csv": 5}, "Choose a CSV"),
+                                  ({"csv": "name\nSam\n"}, 'No "email" column')):
+            status, _h, body = self.post_json("/api/import-leads", payload)
+            self.assertEqual(status, 400)
+            self.assertIn(fragment, json.loads(body)["message"])
+
+    def test_oversized_files_are_refused(self):
+        status, _h, _b = self.post_json("/api/import-leads", {"csv": "email\n" + "x" * (2 * 1024 * 1024)})
+        self.assertEqual(status, 413)
+
+    def test_only_json_posts_are_accepted(self):
+        status, _h, _b = self.request("POST", "/api/import-leads", "csv=email",
+                                      {"Content-Type": "application/x-www-form-urlencoded"})
+        self.assertEqual(status, 403)
+
+    def test_template_download(self):
+        status, headers, body = self.get("/api/import-template")
+        self.assertEqual(status, 200)
+        self.assertIn("leads-template.csv", headers["Content-Disposition"])
+        self.assertTrue(body.startswith(b"email,first_name"))
+
+
+class TestImportNeedsSignIn(DashboardServerCase):
+    def test_import_needs_a_session_and_csrf_token(self):
+        status, _h, _b = self.post_json("/api/import-leads", {"csv": "email\nsam@acme.test\n"})
+        self.assertEqual(status, 401)
+        token = self.login()
+        status, _h, _b = self.post_json("/api/import-leads", {"csv": "email\nsam@acme.test\n"}, self.cookie(token))
+        self.assertEqual(status, 403)
+
+
 class TestDashboardPage(unittest.TestCase):
     """Contract between index.html and the server (no browser needed)."""
 

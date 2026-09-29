@@ -224,6 +224,19 @@ class TestSendingRules(SequenceTestCase):
         result = self.engine.run_outreach_campaign()
         self.assertEqual((result["status"], self.sent), ("blocked", []))
 
+    def test_resume_lifts_the_pause_without_raising_the_limit(self):
+        from core.outreach_rules import resume_sending, sending_paused
+        self.test_bounce_alarm_pauses_sending()
+        profile = self.engine.profile
+        self.assertIn("sdr resume", sending_paused(profile))
+        self.assertTrue(resume_sending(profile))
+        self.assertIsNone(sending_paused(profile))
+        self.assertFalse(resume_sending(profile))            # nothing left to resume
+        self.assertEqual(profile["outreach"].get("max_bounce_rate", 5), 5)
+        result = self.engine.run_outreach_campaign()
+        self.assertNotEqual(result.get("status"), "blocked")
+        self.assertEqual(len(self.sent), 1)
+
     def test_do_not_contact_list_is_respected(self):
         lead_id = self.add_lead("owner@customer.test", 95)
         with mock.patch.object(email_marketing, "load_do_not_contact", lambda: {"customer.test"}):

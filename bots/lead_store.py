@@ -49,6 +49,14 @@ def known_domains() -> set:
     return domains
 
 
+def known_emails() -> set:
+    """Every address already in the database, whatever its status."""
+    conn = get_connection()
+    rows = conn.execute("SELECT email FROM leads").fetchall()
+    conn.close()
+    return {row["email"].lower() for row in rows}
+
+
 def save_leads(candidates: list, ideal_client: str) -> list:
     """Save scored leads (qualified as 'new', others as 'disqualified'); skip known emails.
     `ideal_client` fills in a missing title/category. Returns the saved rows with their ids."""

@@ -9,6 +9,27 @@ forward to one of those tags, and it shows you the notes below before it does.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-28
+
+### Added
+
+- **Import your own leads.** Click **Import Leads** on the dashboard's Leads tab and choose a
+  CSV file from Excel, Google Sheets or your CRM, or run `sdr import leads.csv` in Terminal or
+  PowerShell. Only an `email` column is needed; first name, company, title, website and
+  location are picked up when present. The file is checked first, and you see what will be
+  imported and what is skipped, and why. Importing sends nothing: the leads join your next run.
+- Imported leads pass the same safeguards as found ones. Anyone already in your leads
+  (including people who unsubscribed or bounced) and anyone on your do-not-contact list is
+  skipped, and each domain is checked for a working mail server.
+- **`sdr resume`** and a **Resume sending** button on the dashboard, to start sending again
+  after a bounce-rate pause.
+
+### Changed
+
+- After a bounce-rate pause, the message now points to `sdr resume` instead of suggesting a
+  higher bounce limit. Resuming keeps the limit where it is, so another bad batch pauses
+  sending again.
+
 ## [1.0.0] - 2026-09-28
 
 First public release of **Automated SDR by Fred**: an AI sales rep that runs on your own
@@ -77,5 +98,6 @@ computer. It finds your ideal clients, emails them, and handles the replies.
 - The Brave Search key is never sent along on a redirect.
 - Installers install the newest release tag, not unreleased code.
 
-[Unreleased]: https://github.com/Fred-In-tech/automated-sdr-agent/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/Fred-In-tech/automated-sdr-agent/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/Fred-In-tech/automated-sdr-agent/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Fred-In-tech/automated-sdr-agent/releases/tag/v1.0.0

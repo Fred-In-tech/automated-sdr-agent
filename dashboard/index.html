@@ -274,6 +274,7 @@
       <div class="section-card" id="alarm-card" style="display:none; border-color: #ef4444;">
         <div class="section-title">🛑 Sending paused</div>
         <div id="alarm-text" style="color: var(--text-muted); margin-top: 0.5rem;"></div>
+        <button class="btn btn-secondary" style="margin-top: 0.9rem;" onclick="resumeSending()">▶ Resume sending</button>
       </div>
 
       <div class="section-card" id="hot-leads-card" style="display:none;">
@@ -314,6 +315,7 @@
           <div class="section-title">📊 Leads Database</div>
           <div class="actions-bar">
             <button class="btn btn-secondary" onclick="triggerBot('leadgen')">+ Find Leads</button>
+            <button class="btn btn-secondary" onclick="openImportModal()">📤 Import Leads</button>
             <a href="/api/export-csv" class="btn btn-emerald" style="text-decoration:none;">📥 Export CSV</a>
           </div>
         </div>
@@ -455,6 +457,30 @@ ANTHROPIC_API_KEY=your-claude-key   # AI openers + reply reading ([ai] enabled =
     </div>
 
   </main>
+
+  <!-- IMPORT LEADS MODAL -->
+  <div id="import-modal" class="modal-overlay" onclick="closeImportModal()">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title">📤 Import your own leads</div>
+        <button class="modal-close" onclick="closeImportModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="margin-bottom:0.9rem;">Choose a CSV file (from Excel, Google Sheets or your CRM). It needs an
+          <strong>email</strong> column; first_name, company, title, website and location are optional.
+          <a href="/api/import-template">Download an example</a>.</p>
+        <input type="file" id="import-file" accept=".csv,text/csv" onchange="previewImport()">
+        <p style="margin-top:0.9rem; color:var(--muted); font-size:0.85rem;">Only import people you're allowed to email.
+          Nothing is sent now: imported leads join your next scheduled run. Anyone who unsubscribed, bounced or is on
+          your do-not-contact list is skipped.</p>
+        <div id="import-result" class="email-meta-box" style="margin-top:1rem; display:none;"></div>
+        <div class="actions-bar" style="margin-top:1rem; justify-content:flex-end;">
+          <button class="btn btn-secondary" onclick="closeImportModal()">Close</button>
+          <button class="btn" id="import-confirm" onclick="confirmImport()" disabled>Import</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- EMAIL PREVIEW MODAL POPUP -->
   <div id="email-modal" class="modal-overlay" onclick="closeEmailModal(event)">
@@ -761,6 +787,93 @@ ANTHROPIC_API_KEY=your-claude-key   # AI openers + reply reading ([ai] enabled =
         });
       } catch (err) {
         console.error('Failed to fetch social:', err);
+      }
+    }
+
+    async function resumeSending() {
+      if (!confirm('Start sending again? Bounced addresses are already removed. Earlier bounces stop counting; the limit stays the same.')) return;
+      try {
+        await sessionReady;
+        const res = await api('/api/resume-sending', {
+          method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) alert(data.message || 'Could not resume. Reload the page and try again.');
+        refreshAllData();
+      } catch (err) {
+        console.error('Failed to resume sending:', err);
+      }
+    }
+
+    // Import leads: the file is read in the browser, checked first (dry run), then imported.
+    let importCsv = '';
+
+    function openImportModal() {
+      importCsv = '';
+      document.getElementById('import-file').value = '';
+      document.getElementById('import-result').style.display = 'none';
+      document.getElementById('import-confirm').disabled = true;
+      document.getElementById('import-modal').style.display = 'flex';
+    }
+
+    function closeImportModal() {
+      document.getElementById('import-modal').style.display = 'none';
+    }
+
+    function showImportResult(data, done) {
+      const box = document.getElementById('import-result');
+      const lines = [];
+      if (!data.success) {
+        lines.push('<strong>' + esc(data.message || 'That file could not be imported.') + '</strong>');
+      } else {
+        const count = data.imported + (data.imported === 1 ? ' lead' : ' leads');
+        lines.push('<strong>' + esc(done ? count + ' imported.' : count + ' ready to import') +
+                   '</strong> (of ' + esc(data.total) + ' in the file)');
+        if (data.duplicates) lines.push(esc(data.duplicates) + ' skipped: already in your leads, or listed twice');
+        if (data.blocked) lines.push(esc(data.blocked) + ' skipped: on your do-not-contact list');
+        if (data.invalid) lines.push(esc(data.invalid) + " skipped: the email address can't be used");
+        (data.problems || []).slice(0, 8).forEach(p => lines.push('<span style="color:var(--muted)">' + esc(p) + '</span>'));
+        if (done && data.imported) lines.push('Nothing was emailed. They go out with your next run.');
+      }
+      box.innerHTML = lines.join('<br>');
+      box.style.display = 'block';
+    }
+
+    async function sendImport(dryRun) {
+      await sessionReady;
+      const res = await api('/api/import-leads', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ csv: importCsv, dry_run: dryRun })
+      });
+      if (res.status === 413) return { success: false, message: 'That file is larger than 1 MB. Split it into smaller files.' };
+      return await res.json().catch(() => ({ success: false }));
+    }
+
+    async function previewImport() {
+      const file = document.getElementById('import-file').files[0];
+      const button = document.getElementById('import-confirm');
+      button.disabled = true;
+      if (!file) return;
+      try {
+        importCsv = await file.text();
+        const data = await sendImport(true);
+        showImportResult(data, false);
+        button.disabled = !(data.success && data.imported > 0);
+      } catch (err) {
+        showImportResult({ success: false, message: 'Could not read that file.' }, false);
+      }
+    }
+
+    async function confirmImport() {
+      const button = document.getElementById('import-confirm');
+      button.disabled = true;
+      try {
+        const data = await sendImport(false);
+        showImportResult(data, true);
+        if (data.success) { fetchLeads(); refreshAllData(); }
+      } catch (err) {
+        showImportResult({ success: false, message: 'The import did not finish. Try again.' }, true);
       }
     }
 

@@ -32,8 +32,9 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
-from core.db import init_db, get_db_stats, get_recent_logs, get_connection
+from core.db import init_db, get_db_stats, get_recent_logs, get_connection, log_event
 from core.config import ProfileError, load_profile
+from core.outreach_rules import resume_sending
 from core.dashboard_auth import (LoginLimiter, Session, SessionStore, configured_password_hash,
                                  ensure_instance_token, instance_proof, instance_token, is_nonce,
                                  is_valid_hash, new_nonce, proof_matches, record_instance_port,
@@ -54,7 +55,9 @@ AUTH_PATHS = ("/login", "/logout")
 INSTANCE_PATH = "/api/instance"  # answered before login: how `sdr dashboard` recognises its own server
 MAX_LOGIN_BODY_BYTES = 4 * 1024
 MAX_API_BODY_BYTES = 64 * 1024
-DRAIN_LIMIT_BYTES = 1024 * 1024  # read (and drop) oversized bodies up to this, so the error reply isn't lost
+IMPORT_PATH = "/api/import-leads"
+MAX_IMPORT_BODY_BYTES = 2 * 1024 * 1024   # a 1 MB CSV, JSON-escaped
+DRAIN_LIMIT_BYTES = 4 * 1024 * 1024  # read (and drop) oversized bodies up to this, so the error reply isn't lost
 PROBE_TIMEOUT_SECONDS = 0.5
 MAX_PROBE_BYTES = 4 * 1024  # a probe answer is a short JSON object; whatever else answers isn't ours
 UPDATE_STATUS_PATH = os.path.join(BASE_DIR, "data", "update_status.json")
@@ -155,6 +158,7 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
         "/api/logs": "_api_logs",
         "/api/update-status": "_api_update_status",
         "/api/export-csv": "_api_export_csv",
+        "/api/import-template": "_api_import_template",
     }
 
     def log_message(self, format, *args):
@@ -251,7 +255,9 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
     def _dispatch(self, method: str) -> None:
         path = self._request_path()
         if method == "POST":
-            body = self._read_body(MAX_LOGIN_BODY_BYTES if path in AUTH_PATHS else MAX_API_BODY_BYTES)
+            limit = (MAX_LOGIN_BODY_BYTES if path in AUTH_PATHS
+                     else MAX_IMPORT_BODY_BYTES if path == IMPORT_PATH else MAX_API_BODY_BYTES)
+            body = self._read_body(limit)
             if body is None:
                 return
             self.body = body
@@ -394,7 +400,35 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
         if path == "/api/run-bot":
             self._api_run_bot()
             return
+        if path == IMPORT_PATH:
+            self._api_import_leads()
+            return
+        if path == "/api/resume-sending":
+            self._api_resume_sending()
+            return
         self.send_error(404, "Endpoint Not Found")
+
+    def _api_import_leads(self) -> None:
+        """Import leads from CSV text the page read from a file. Saves leads; sends nothing."""
+        from core.lead_import import LeadImportError, import_csv_text
+        try:
+            payload = json.loads(self.body.decode("utf-8"))
+            text, dry_run = payload["csv"], bool(payload.get("dry_run"))
+            if not isinstance(text, str):
+                raise ValueError
+        except (UnicodeDecodeError, ValueError, KeyError, TypeError):
+            self._send_json({"success": False, "message": "Choose a CSV file to import."}, 400)
+            return
+        try:
+            summary = import_csv_text(text, load_profile(), dry_run=dry_run)
+        except (LeadImportError, ProfileError) as e:
+            self._send_json({"success": False, "message": str(e)}, 400)
+            return
+        result = summary.as_dict()
+        if not dry_run:
+            log_event("Dashboard", "ImportLeads", "success",
+                      f"Imported {result['imported']} leads ({result['skipped']} skipped).")
+        self._send_json({"success": True, **result})
 
     def _api_run_bot(self) -> None:
         try:
@@ -458,6 +492,14 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
     def _api_pipeline(self) -> None:
         self._send_json(pipeline_stats(_load_profile_or_none()))
 
+    def _api_resume_sending(self) -> None:
+        try:
+            resumed = resume_sending(load_profile())
+        except ProfileError as e:
+            self._send_json({"success": False, "message": str(e)}, 400)
+            return
+        self._send_json({"success": True, "resumed": resumed})
+
     def _api_stats(self) -> None:
         self._send_json(get_db_stats())
 
@@ -498,6 +540,11 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
 
     def _api_update_status(self) -> None:
         self._send_json(read_update_status())
+
+    def _api_import_template(self) -> None:
+        from core.lead_import import TEMPLATE_CSV
+        self._send_body(TEMPLATE_CSV.encode("utf-8"), "text/csv", 200,
+                        {"Content-Disposition": 'attachment; filename="leads-template.csv"'})
 
     def _api_export_csv(self) -> None:
         csv_path = export_leads_to_csv()
