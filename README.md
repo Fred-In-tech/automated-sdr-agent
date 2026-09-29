@@ -250,7 +250,7 @@ Promotions.
 
 | | **Sales outreach** (recommended) | **Marketing** |
 |---|---|---|
-| Looks like | An email you typed: plain text, your name, a plain link | A designed email: your logo, brand colours, a button, feature pills |
+| Looks like | An email you typed: plain text, your name, no links ("reply and I'll send you the link") | A designed email: your logo, brand colours, a button, feature pills |
 | Usually lands in | Primary | Promotions |
 | Best for | Cold email to people who don't know you yet | People who already know you, like newsletters and customers |
 | Setup answer | `kind = "sales"` (profile: `style = "personal"`) | `kind = "marketing"` (profile: `style = "branded"`) |

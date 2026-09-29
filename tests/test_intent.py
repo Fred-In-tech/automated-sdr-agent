@@ -16,6 +16,20 @@ RESERVED_SUFFIXES = (".test", ".example", ".invalid", ".localhost", "example.com
 REAL_LOOKING_HOST = re.compile(r"\b(?:[a-z0-9-]+\.)+(?:com|net|org|io|co|us|uk|de|fr|ca|au|me|ai|app|dev)\b", re.I)
 
 
+
+class TestAskingForTheLink(unittest.TestCase):
+    """Sales emails end with "reply and I'll send you the link", so short replies must count."""
+
+    def test_short_requests_for_the_link_are_interested(self):
+        for text in ("send it", "Send it please", "send me the link", "Sure, send the link", "pls send over",
+                     "share the link"):
+            self.assertEqual(classify_reply(text), "interested", text)
+
+    def test_asking_not_to_be_sent_anything_is_a_no(self):
+        for text in ("don't send it", "Do not send me anything", "please dont send it"):
+            self.assertEqual(classify_reply(text), "not_interested", text)
+
+
 class TestAutomatedDetection(unittest.TestCase):
     def test_real_autoresponders_from_the_logs_are_caught(self):
         for subject in (

@@ -164,7 +164,6 @@ def sequence_copy(a: Mapping[str, Any]) -> dict:
     kind = _get(a, "style.kind", "sales")
     sentence = pitch_sentence(name, _get(a, "business.pitch", ""), client)
     look = {"text": "See how it works", "url": website or "{{product_url}}"}
-    try_it = {"text": "Try {{product_name}}", "url": website or "{{product_url}}"}
     start = {"text": "Start your {{offer}}", "url": "{{product_url}}"}
 
     if kind == "marketing":
@@ -175,26 +174,38 @@ def sequence_copy(a: Mapping[str, Any]) -> dict:
                        "- Set up in minutes, no training needed\n"
                        "- A {{offer}} to see if it fits\n\n{{button}}\n\n{{sign_off}}")
     else:
+        # Sales emails carry no link at all: a cold email with a link reads as marketing (and is
+        # likelier to be filtered), and "reply and I'll send it" starts the conversation. The
+        # reply is answered with the welcome email, which has the button.
         body = ("Hi {{first_name}},\n\n{{opener}}\n\n" + sentence
-                + "\n\nWorth a look?\n\n{{button}}\n\n{{sign_off}}")
+                + "\n\nWorth a look? Just reply and I'll send you the link.\n\n{{sign_off}}")
         follow_up_1 = ("Hi {{first_name}},\n\nQuick follow-up in case my last email got buried.\n\n"
                        "Most {{category}}s I talk to don't need another tool, they need fewer hours on admin "
                        "that doesn't pay. That's the whole point of {{product_name}}.\n\n"
-                       "Worth trying on your next project?\n\n{{button}}\n\n{{sign_off}}")
-    follow_up_2 = ("Hi {{first_name}},\n\nIn case it's easier to just try it: there's a {{offer}} waiting "
-                   "for you, no call needed.\n\n{{button}}\n\n{{sign_off}}")
+                       "Worth trying on your next project? Reply and I'll send you the link.\n\n{{sign_off}}")
+    if kind == "marketing":
+        follow_up_2 = ("Hi {{first_name}},\n\nIn case it's easier to just try it: there's a {{offer}} waiting "
+                       "for you, no call needed.\n\n{{button}}\n\n{{sign_off}}")
+    else:
+        follow_up_2 = ("Hi {{first_name}},\n\nIn case it's easier to just try it: there's a {{offer}} waiting "
+                       "for you, no call needed.\n\nWant the link? Just reply \"send me the link\".\n\n"
+                       "{{sign_off}}")
     breakup = ("Hi {{first_name}},\n\nI haven't heard back, so I'll assume the timing isn't right and stop "
                "emailing.\n\nIf it's easier, just reply with a number:\n1 - send me the link\n2 - maybe later\n"
                "3 - not interested\n\nGood luck with everything at {{company}}.\n\n{{sign_off}}")
+    if kind == "marketing":
+        not_now = ("Hi {{first_name}},\n\nYou mentioned the timing wasn't right a while back, so I'm checking "
+                   "in once. If it's useful now, you can start with a {{offer}}.\n\n{{button}}\n\n"
+                   "No worries if not, I won't follow up again.\n\n{{sign_off}}")
+        return {"body": body, "button": look,
+                "follow_ups": [(3, follow_up_1, look), (4, follow_up_2, start), (7, breakup, None)],
+                "not_now": (not_now, start)}
     not_now = ("Hi {{first_name}},\n\nYou mentioned the timing wasn't right a while back, so I'm checking in "
-               "once. If it's useful now, you can start with a {{offer}}.\n\n{{button}}\n\n"
+               "once. If it's useful now, you can start with a {{offer}}. Reply and I'll send you the link.\n\n"
                "No worries if not, I won't follow up again.\n\n{{sign_off}}")
-    return {
-        "body": body, "button": look,
-        "follow_ups": [(3, follow_up_1, try_it if kind != "marketing" else look), (4, follow_up_2, start),
-                       (7, breakup, None)],
-        "not_now": (not_now, start),
-    }
+    return {"body": body, "button": None,
+            "follow_ups": [(3, follow_up_1, None), (4, follow_up_2, None), (7, breakup, None)],
+            "not_now": (not_now, None)}
 
 
 def reply_copy(a: Mapping[str, Any]) -> dict:

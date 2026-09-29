@@ -195,8 +195,12 @@ class TestAnswersMode(WizardCase):
         subject, _html, text = build_outreach_email(profile, lead)
         self.assertEqual(subject, "question about Silva Photo")
         self.assertIn("Acme helps wedding photographers book more weddings with less admin.", text)
-        self.assertIn("See how it works: https://acme.example", text)
+        self.assertIn("Just reply and I'll send you the link.", text)
         for step in range(1, sequence_length(profile) + 1):
+            _subject, html_part, text_part = build_outreach_email(profile, lead, step)
+            # sales emails carry no link: the link goes out in the welcome reply, to people who asked
+            self.assertNotIn("http", text_part, f"step {step}")
+            self.assertNotIn("href", html_part, f"step {step}")
             rendered = "".join(build_outreach_email(profile, lead, step))
             self.assertNotIn("{{", rendered)
 

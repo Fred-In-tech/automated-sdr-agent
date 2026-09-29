@@ -9,6 +9,22 @@ forward to one of those tags, and it shows you the notes below before it does.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-29
+
+### Changed
+
+- **Sales-style emails no longer contain any link.** The first email, the follow-ups and the
+  "not now" check-in end with "reply and I'll send you the link". A cold email without links
+  reads like a person wrote it and is less likely to be filtered. When someone replies, they
+  get the welcome email with the button. Marketing-style emails keep their buttons.
+  This applies to new setups; an existing profile keeps its own wording
+  (edit `[outreach]` in `config/profile.toml`, or run setup again to get the new wording).
+
+### Fixed
+
+- Short replies such as "send it", "send the link" or "send over" are now read as interested,
+  so the person gets the welcome email. "Don't send" is read as not interested.
+
 ## [1.1.0] - 2026-09-28
 
 ### Added
@@ -113,6 +129,7 @@ computer. It finds your ideal clients, emails them, and handles the replies.
 - The Brave Search key is never sent along on a redirect.
 - Installers install the newest release tag, not unreleased code.
 
-[Unreleased]: https://github.com/Fred-In-tech/automated-sdr-agent/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/Fred-In-tech/automated-sdr-agent/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/Fred-In-tech/automated-sdr-agent/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Fred-In-tech/automated-sdr-agent/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Fred-In-tech/automated-sdr-agent/releases/tag/v1.0.0

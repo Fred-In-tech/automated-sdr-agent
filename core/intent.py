@@ -46,7 +46,7 @@ SUPPORT_DESK_REDIRECTS = (
 BULK_PRECEDENCE = ("bulk", "junk", "list", "auto_reply")
 
 NOT_INTERESTED = (
-    "not interested", "no interest", "no thanks", "no thank you", "we're good", "we are good", "all set",
+    "not interested", "no interest", "don't send", "do not send", "dont send", "no thanks", "no thank you", "we're good", "we are good", "all set",
     "already have", "already use", "already using", "don't need", "do not need", "not a fit", "not for us",
     "please don't contact", "please do not contact", "don't email", "do not email", "don't send",
     "stop sending", "not relevant", "isn't relevant", "not a good fit", "not the right fit",
@@ -65,7 +65,8 @@ WRONG_PERSON = (
 INTERESTED = (
     "interested", "sounds good", "sounds great", "sounds interesting", "tell me more", "love to",
     "i'd like to", "i would like to", "let's talk", "lets talk", "set up a call", "schedule a call",
-    "book a", "demo", "sign me up", "send me", "more info", "more information", "i'll check it out",
+    "book a", "demo", "sign me up", "send me", "send it", "send the link", "send link", "send over",
+    "share the link", "more info", "more information", "i'll check it out",
     "i will check it out", "will take a look", "i'll take a look", "i'll try", "i will try", "signed up",
     "how do i sign up", "how do i start", "count me in",
 )
