@@ -56,6 +56,7 @@ def is_do_not_contact(email: str, blocked: set) -> bool:
 
 
 # ── Bounce-rate safety switch ───────────────────────────────────────────
+DEFAULT_MAX_BOUNCE_RATE = 10      # percent of recent first emails; [outreach] max_bounce_rate overrides it
 MIN_BOUNCE_SAMPLE = 10            # fewer first emails than this say nothing about a rate
 RESUME_ACTION = "BounceResume"    # bot_logs action written by `sdr resume`
 
@@ -64,7 +65,7 @@ def bounce_alarm(cursor, profile: dict) -> str | None:
     """Stops sending when recent first emails bounce too often (protects your domain).
     Only counts fit-scored leads, so bounces from before qualification existed don't trip it."""
     outreach = profile["outreach"]
-    max_rate = float(outreach.get("max_bounce_rate", 5))
+    max_rate = float(outreach.get("max_bounce_rate", DEFAULT_MAX_BOUNCE_RATE))
     window = int(outreach.get("bounce_check_last", 30))
     # Only emails sent since the last `sdr resume` count. While paused nothing new is sent, so
     # without this the same bounces would keep the pause on forever, and the only way out

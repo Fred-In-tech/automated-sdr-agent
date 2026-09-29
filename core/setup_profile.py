@@ -369,7 +369,7 @@ min_fit_score = 50
 seconds_between_emails = 300
 {_kv("send_days", o["send_days"])}
 send_window = "08:00-17:00"        # only send during business hours (this computer's time)
-max_bounce_rate = 5
+max_bounce_rate = 10
 track_links = true
 utm_campaign = "sdr"
 subject = {toml_str("question about {{company}}")}

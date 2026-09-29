@@ -39,6 +39,8 @@ forward to one of those tags, and it shows you the notes below before it does.
 
 ### Changed
 
+- The bounce-rate pause now trips above **10%** of recent first emails (it was 5%). Change it
+  with `[outreach] max_bounce_rate` in your profile. An existing profile keeps its own number.
 - After a bounce-rate pause, the message now points to `sdr resume` instead of suggesting a
   higher bounce limit. Resuming keeps the limit where it is, so another bad batch pauses
   sending again.

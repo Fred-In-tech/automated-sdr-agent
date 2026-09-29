@@ -224,15 +224,36 @@ class TestSendingRules(SequenceTestCase):
         result = self.engine.run_outreach_campaign()
         self.assertEqual((result["status"], self.sent), ("blocked", []))
 
+    def test_bounce_limit_is_ten_percent_unless_the_profile_says_otherwise(self):
+        """1 bounce in 10 first emails is exactly 10%: allowed. 2 in 10 pauses sending."""
+        from core.outreach_rules import DEFAULT_MAX_BOUNCE_RATE, sending_paused
+        self.assertEqual(DEFAULT_MAX_BOUNCE_RATE, 10)
+        self.engine.profile["outreach"].pop("max_bounce_rate", None)
+        for i in range(10):
+            lead_id = self.add_lead(f"hi@t{i}.test", 70)
+            conn = db.get_connection()
+            conn.execute("INSERT INTO email_logs (lead_id, lead_email, subject, body, sent_at, step) "
+                         "VALUES (?, ?, 's', 'b', ?, 1)", (lead_id, f"hi@t{i}.test", "2026-01-01T00:00:00+00:00"))
+            conn.execute("UPDATE leads SET status = ? WHERE id = ?", ("bounced" if i < 1 else "contacted", lead_id))
+            conn.commit()
+            conn.close()
+        self.assertIsNone(sending_paused(self.engine.profile))
+        conn = db.get_connection()
+        conn.execute("UPDATE leads SET status = 'bounced' WHERE email = 'hi@t5.test'")
+        conn.commit()
+        conn.close()
+        self.assertIn("20% > 10%", sending_paused(self.engine.profile))
+
     def test_resume_lifts_the_pause_without_raising_the_limit(self):
         from core.outreach_rules import resume_sending, sending_paused
         self.test_bounce_alarm_pauses_sending()
         profile = self.engine.profile
+        limit_before = profile["outreach"].get("max_bounce_rate")
         self.assertIn("sdr resume", sending_paused(profile))
         self.assertTrue(resume_sending(profile))
         self.assertIsNone(sending_paused(profile))
         self.assertFalse(resume_sending(profile))            # nothing left to resume
-        self.assertEqual(profile["outreach"].get("max_bounce_rate", 5), 5)
+        self.assertEqual(profile["outreach"].get("max_bounce_rate"), limit_before)
         result = self.engine.run_outreach_campaign()
         self.assertNotEqual(result.get("status"), "blocked")
         self.assertEqual(len(self.sent), 1)

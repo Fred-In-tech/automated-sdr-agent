@@ -89,7 +89,7 @@ daily_send_limit = 20              # max emails per day across all runs (warm up
 seconds_between_emails = 300       # wait between sends; protects your sender reputation
 send_days = ["Mon", "Tue", "Wed", "Thu", "Fri"]
 send_window = "08:00-17:00"        # only send during business hours (this computer's time); "" = any time
-max_bounce_rate = 5                # pause sending if more than 5% of recent first emails bounce
+max_bounce_rate = 10               # pause sending if more than 10% of recent first emails bounce
 track_links = true                 # add utm_ tags to links to your own site (see them in Google Analytics)
 utm_campaign = "sdr"
 

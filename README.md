@@ -351,7 +351,7 @@ but you're responsible for how you use it. This isn't legal advice.
 - Skips everyone on your **do-not-contact list** (`config/do_not_contact.txt`; copy
   `config/do_not_contact.example.txt`).
 - Sends only on your send days, during business hours (08:00–17:00 by default), 5 minutes apart,
-  up to your **daily limit**. It pauses automatically if more than 5% of recent emails bounce.
+  up to your **daily limit**. It pauses automatically if more than 10% of recent first emails bounce (`sdr resume` starts it again).
 - Emails only **business addresses published on business websites**, and only leads that pass the
   fit score.
 - Reads only the pages a website's **robots.txt** allows. The only exception is Bing, and only if
