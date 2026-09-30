@@ -31,6 +31,9 @@ jobs:
         include:
           - os: ubuntu-latest
             python-version: "3.12"
+          # python.org's macOS installer is on 3.14 now, so that's what new Mac users have
+          - os: macos-latest
+            python-version: "3.14"
     env:
       # Some tests build throwaway git repos; runners have no git identity configured.
       GIT_AUTHOR_NAME: CI

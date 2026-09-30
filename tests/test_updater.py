@@ -698,7 +698,8 @@ class TestChangelogFile(unittest.TestCase):
         version = read(os.path.join(root, "VERSION")).strip()
         self.assertIn(f"## [{version}]", text)
         self.assertIn("Keep a Changelog", text)
-        self.assertIn("Automated SDR", updater.changelog_notes(text, current="0.0.0"))
+        # the newest release leads the notes; older ones may fall past the length cap
+        self.assertTrue(updater.changelog_notes(text, current="0.0.0").startswith(f"## [{version}]"))
 
 
 if __name__ == "__main__":

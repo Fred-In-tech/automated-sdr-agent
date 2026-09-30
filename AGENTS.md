@@ -342,6 +342,7 @@ core/
   lead_import.py        CSV lead import: column matching, safety checks (dashboard + CLI)
   settings_api.py       the dashboard's Settings page: reads settings, saves a section via the setup code
   tui.py tui_validation.py   terminal UI (banner, prompts, plain fallback, answers files)
+  tui_stdin.py          lets the arrow-key prompts read the keyboard under `curl | bash` on macOS
   brand_detect.py       reads name/logo/colours from the user's website
   email_checks.py       mail provider presets, SMTP/IMAP login check, verification code
   search.py             lead search: Brave API, DuckDuckGo, Bing (opt-in); throttling and backoff

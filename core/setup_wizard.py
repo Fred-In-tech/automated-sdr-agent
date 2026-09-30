@@ -142,7 +142,8 @@ def run_setup(answers_path: str | None = None, section: str | None = None, ui: U
         return 2
     except KeyboardInterrupt:
         ui.echo("")
-        ui.warn("Stopped. Your settings were saved." if saved["done"] else "Setup cancelled. Nothing was saved.")
+        ui.warn("Stopped. Your settings were saved." if saved["done"]
+                else f"Setup cancelled. Nothing was saved. Run `{CLI_NAME} setup` to start again.")
         return 130
 
 

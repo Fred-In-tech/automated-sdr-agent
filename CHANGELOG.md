@@ -9,6 +9,23 @@ forward to one of those tags, and it shows you the notes below before it does.
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-09-29
+
+### Fixed
+
+- **On a Mac, the one-line installer's setup stopped at the first question with "Setup
+  cancelled. Nothing was saved."** before anyone had typed anything. The installer runs
+  `curl ... | bash`, so it starts setup with the keyboard attached as `/dev/tty`. macOS can't
+  watch that device for key presses the way the arrow-key menus need to, and the menu library
+  reports this exactly as it reports Ctrl-D, so setup took it as "cancel". Setup now reads the
+  keyboard from the terminal's real device instead. If that isn't possible, it switches to
+  simple typed prompts rather than stopping. Recent releases of the menu library made this show
+  up; older ones failed differently and fell back to simple prompts on their own.
+- The "Setup cancelled" message now tells you how to start again (`sdr setup`).
+- Tests now also run on macOS with Python 3.14, the version the python.org installer gives new Mac users.
+
+If setup stopped like this for you, your install is fine. Run `sdr update`, then `sdr setup`.
+
 ## [1.2.1] - 2026-09-29
 
 ### Fixed

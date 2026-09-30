@@ -35,6 +35,7 @@ from types import SimpleNamespace
 from typing import Any, Callable, Iterator, Mapping, Sequence
 
 from core.product import AUTHOR, BRAND_COLOR, DISPLAY_NAME, TAGLINE, version
+from core.tui_stdin import stdin_watchable
 from core.tui_validation import (  # re-exported: part of this module's public API
     GENERIC_INVALID,
     choice_title,
@@ -215,6 +216,8 @@ class UI:
             self._rich = _import_rich()
             self.console = console or self._rich.Console(highlight=False)
             self._questionary = _import_questionary()
+            if self._questionary is not None and interactive is None and not stdin_watchable():
+                self._questionary = None   # arrow keys can't be read here; typed prompts still can
 
     def _decide_plain(self, plain: bool | None) -> bool:
         if plain is True:
