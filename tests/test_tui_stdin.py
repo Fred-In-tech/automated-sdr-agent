@@ -15,7 +15,7 @@ from core import tui, tui_stdin
 class TestStdinWatchable(unittest.TestCase):
     def patch(self, target, **kwargs):
         patcher = mock.patch.object(tui_stdin, target, **kwargs) if hasattr(tui_stdin, target) \
-            else mock.patch(target, **kwargs)
+            else mock.patch(target, create=True, **kwargs)   # Windows has no os.ttyname to replace
         mocked = patcher.start()
         self.addCleanup(patcher.stop)
         return mocked
