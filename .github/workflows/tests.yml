@@ -41,8 +41,8 @@ jobs:
       GIT_COMMITTER_NAME: CI
       GIT_COMMITTER_EMAIL: ci@example.invalid
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -57,8 +57,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Install scanners
@@ -69,3 +69,21 @@ jobs:
         run: bandit -q -r core bots dashboard cli.py runner.py -ll
       - name: Installer and launcher lint (shellcheck, errors only)
         run: shellcheck --severity=error install.sh bin/sdr
+
+  install:
+    # The real one-line install, in a pseudo-terminal, the way a new user runs it: catches setup
+    # problems the unit tests can't see (v1.2.2: macOS setup quit at its first question).
+    name: install + setup (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Install from this commit and answer setup's first question
+        run: python scripts/install_smoke.py

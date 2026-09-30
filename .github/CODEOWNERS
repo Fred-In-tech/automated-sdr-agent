@@ -1,0 +1,14 @@
+# Every change is reviewed by the maintainer. The paths below matter most: they run on users'
+# computers with their mailbox passwords, or decide what gets installed.
+*                        @Fred-In-tech
+install.sh               @Fred-In-tech
+install.ps1              @Fred-In-tech
+bin/                     @Fred-In-tech
+core/updater.py          @Fred-In-tech
+core/dashboard_auth.py   @Fred-In-tech
+core/email_checks.py     @Fred-In-tech
+dashboard/               @Fred-In-tech
+bots/email_marketing.py  @Fred-In-tech
+bots/inbox_listener.py   @Fred-In-tech
+requirements.txt         @Fred-In-tech
+.github/                 @Fred-In-tech

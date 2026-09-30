@@ -31,6 +31,9 @@ REQUIRED_FILES = [
     "install.sh", "install.ps1", "bin/sdr", "bin/sdr.cmd", "LICENSE", "SECURITY.md",
     "CONTRIBUTING.md", "AGENTS.md", "CLAUDE.md", ".github/workflows/tests.yml",
     ".github/dependabot.yml", ".env.example", ".gitignore", "requirements.txt", "cli.py", "VERSION",
+    "CODE_OF_CONDUCT.md", ".github/CODEOWNERS", ".github/pull_request_template.md",
+    ".github/ISSUE_TEMPLATE/bug_report.yml", ".github/ISSUE_TEMPLATE/feature_request.yml",
+    ".github/ISSUE_TEMPLATE/config.yml", "scripts/install_smoke.py",
 ]
 
 # Every command the `sdr` CLI offers; AGENTS.md must teach all of them.
@@ -687,6 +690,7 @@ class CiConfigTest(unittest.TestCase):
         self.assertIn("pip-audit -r requirements.txt", text)
         self.assertIn("bandit -q -r core bots dashboard cli.py runner.py -ll", text)
         self.assertIn("contents: read", text)
+        self.assertIn("python scripts/install_smoke.py", text)   # the real one-line install, end to end
 
     def test_dependabot_watches_pip_and_actions_weekly(self):
         text = read(".github/dependabot.yml")

@@ -1,7 +1,7 @@
 # Contributing to Automated SDR
 
 Thanks for helping! This is a small, friendly project. Bug reports, fixes, docs and ideas are all
-welcome.
+welcome. Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Before you start
 
@@ -39,7 +39,7 @@ You need Python 3.11 or newer. You don't need a mailbox or a profile to run the 
   list, send limits, bounce pause and robots.txt.
 - **Standard library first.** Adding a dependency needs a good reason, a version floor in
   `requirements.txt`, and a clean `pip-audit`.
-- **It has to work everywhere**: Python 3.11, 3.12 and 3.13 on macOS, Linux and Windows.
+- **It has to work everywhere**: Python 3.11 to 3.14 on macOS, Linux and Windows.
   - Don't put backslashes or the enclosing quote character inside f-string expressions (that's
     only legal from 3.12).
   - Don't import `fcntl` or `termios` at module top level. Use `core/locking.py`.
@@ -59,13 +59,20 @@ bandit -q -r core bots dashboard cli.py runner.py -ll
 pip-audit -r requirements.txt
 ```
 
-CI runs the same checks on every push and pull request, on macOS, Linux and Windows. If `bandit`
+CI runs the same checks on every push and pull request, on macOS, Linux and Windows. It also
+runs the real one-line install in a pseudo-terminal (`python scripts/install_smoke.py`, macOS and
+Linux) and answers setup's first question, so run that too if you touch `install.sh`, `bin/sdr`
+or the setup prompts. Pull requests from first-time contributors start CI after a maintainer
+approves the run. If `bandit`
 flags a false positive, add
 `# nosec BXXX` with a short reason on the same line; never add it without one.
 
 - Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/): `feat:`,
   `fix:`, `docs:`, `test:`, `refactor:`, `chore:` and so on.
-- Keep pull requests focused, and add or update tests with every behaviour change.
+- Keep pull requests focused, and add or update tests with every behaviour change. The pull
+  request template has a short checklist; please fill it in.
+- `main` is protected: every change arrives through a pull request that passes CI, and the
+  maintainer reviews it (see `.github/CODEOWNERS`).
 - Docs are part of the change. A new command, option or setup question goes in the tables in
   `README.md` and `AGENTS.md` (setup questions live in `core/setup_questions.py`).
   `tests/test_packaging.py` and `tests/test_docs.py` fail when the docs and the CLI disagree.
@@ -75,7 +82,7 @@ flags a false positive, add
 
 1. Move the `Unreleased` notes into a new `## [X.Y.Z] - YYYY-MM-DD` section of `CHANGELOG.md`.
 2. Bump `VERSION` to `X.Y.Z`.
-3. Merge to `main`, then tag it: `git tag vX.Y.Z && git push origin vX.Y.Z`.
+3. Merge the pull request into `main` once CI passes, then tag it: `git tag vX.Y.Z && git push origin vX.Y.Z`.
 
 Installed copies only ever fast-forward to release tags, so a tag is a promise that `main` passes
 CI at that commit.

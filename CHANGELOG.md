@@ -9,6 +9,26 @@ forward to one of those tags, and it shows you the notes below before it does.
 
 ## [Unreleased]
 
+## [1.2.3] - 2026-09-30
+
+### Changed
+
+- **Newer, patched libraries.** The minimum versions are now requests 2.34.2, questionary 2.1.1,
+  urllib3 2.8.0, certifi 2026.7.22 (the newest list of trusted certificates, used when your
+  mailbox connection is checked) and soupsieve 2.10. `sdr update` installs them for you.
+
+### Added (for contributors)
+
+- **Every release now tests the real one-line install.** CI runs `curl | bash` style installs on
+  macOS and Linux in a pseudo-terminal and answers setup's first question, so a problem like the
+  one fixed in 1.2.2 is caught before release instead of by a user. Run it yourself with
+  `python scripts/install_smoke.py`.
+- Bug report and feature request forms, a pull request checklist, a Code of Conduct and a
+  CODEOWNERS file. Contributors are reminded never to paste passwords, `.env` files or real
+  lead data, and security problems go to a private advisory instead of a public issue.
+- `main` is now protected: changes arrive through pull requests that pass CI.
+- CI uses the current `actions/checkout` and `actions/setup-python` (v7).
+
 ## [1.2.2] - 2026-09-29
 
 ### Fixed
