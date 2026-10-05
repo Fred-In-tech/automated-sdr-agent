@@ -11,7 +11,7 @@ questionary>=2.1.1
 # while it still satisfies the parent's (much older) range, so without these an existing
 # virtualenv could keep a vulnerable copy forever.
 urllib3>=2.8.0
-idna>=3.15
+idna>=3.20
 certifi>=2026.7.22
 soupsieve>=2.10
 pygments>=2.20
