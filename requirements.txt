@@ -2,7 +2,7 @@
 # Floors are the oldest releases with no known advisories (pip-audit, 2026-09-26). `sdr update`
 # re-runs `pip install -r requirements.txt`, so raising a floor here also upgrades existing installs.
 requests>=2.34.2
-beautifulsoup4>=4.12
+beautifulsoup4>=4.15.0
 dnspython>=2.6.1
 rich>=13.7
 questionary>=2.1.1
