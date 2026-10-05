@@ -4,7 +4,7 @@
 requests>=2.34.2
 beautifulsoup4>=4.12
 dnspython>=2.6.1
-rich>=13.7
+rich>=15.0.0
 questionary>=2.1.1
 
 # Patched floors for dependencies of the packages above. pip keeps an already-installed version
