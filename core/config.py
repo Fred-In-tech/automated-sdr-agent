@@ -6,6 +6,7 @@ Create it with `python3 cli.py setup`, or copy config/profile.example.toml.
 """
 
 import os
+import re
 import tomllib
 from typing import Mapping
 
@@ -120,8 +121,43 @@ def compliance_warnings(profile: dict) -> list[str]:
     return warnings
 
 
+# The offer is typed by the user and dropped into templates as "a {{offer}}". People type it every
+# way: "free 14-day trial", "a free planning call", "an intro session", "3 free months".
+_ARTICLE_BEFORE_OFFER = re.compile(r"(?<![\w'])([Aa]n?) \{\{offer\}\}")
+_DETERMINER_BEFORE_OFFER = re.compile(r"(?<![\w'])([Yy]our|[Tt]he|[Oo]ur) \{\{offer\}\}")
+_OWN_ARTICLE = re.compile(r"^(an?|the)\s+", re.IGNORECASE)
+_NEEDS_NO_ARTICLE = re.compile(r"^(an?|the|our|your|my|this|one|\d)\b", re.IGNORECASE)
+_OFFER_IS_A_MEETING = re.compile(r"\b(call|meeting|consult\w*|demo|chat)\b", re.IGNORECASE)
+
+
+def _offer_phrase(article: str, offer: str) -> str:
+    """ "a" + offer, as a person would write it: no "a a", "an" before a vowel, no article before
+    a number or "our". Keeps the template's capital letter."""
+    if _NEEDS_NO_ARTICLE.match(offer):
+        phrase = offer
+    else:
+        phrase = ("an " if offer[:1].lower() in "aeiou" else "a ") + offer
+    return phrase[:1].upper() + phrase[1:] if article[:1].isupper() else phrase
+
+
+def _fit_offer(template: str, offer: str) -> str:
+    offer = offer.strip()
+    if not offer:
+        return template
+    template = _ARTICLE_BEFORE_OFFER.sub(lambda m: _offer_phrase(m.group(1), offer), template)
+    template = _DETERMINER_BEFORE_OFFER.sub(lambda m: f"{m.group(1)} {_OWN_ARTICLE.sub('', offer)}", template)
+    if _OFFER_IS_A_MEETING.search(offer):
+        template = template.replace(", no call needed", "")   # "a free planning call ..., no call needed"
+    return template
+
+
 def render(template: str, values: dict) -> str:
-    """Replace {{placeholders}} in a template. Unknown placeholders are left as-is."""
+    """Replace {{placeholders}} in a template. Unknown placeholders are left as-is.
+
+    The offer is worded to fit its sentence (see `_fit_offer`). That happens here rather than in the
+    templates because existing profiles already hold their own copy of the wording."""
+    if "{{offer}}" in template and values.get("offer"):
+        template = _fit_offer(template, str(values["offer"]))
     for key, val in values.items():
         template = template.replace("{{" + key + "}}", str(val))
     return template
