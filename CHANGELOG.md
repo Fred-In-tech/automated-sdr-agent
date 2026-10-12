@@ -9,6 +9,15 @@ forward to one of those tags, and it shows you the notes below before it does.
 
 ## [Unreleased]
 
+## [1.2.5] - 2026-10-12
+
+### Changed
+
+- **Newer versions of the libraries Automated SDR is built on.** The minimums are now rich 15.0
+  (the terminal colours and boxes), dnspython 2.8 (checking that a lead's domain can receive
+  email), beautifulsoup4 4.15 (reading websites), idna 3.20 (international website names) and
+  pygments 2.21. Nothing changes in how you use it. `sdr update` installs them for you.
+
 ## [1.2.4] - 2026-10-12
 
 ### Fixed
