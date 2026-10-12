@@ -9,6 +9,22 @@ forward to one of those tags, and it shows you the notes below before it does.
 
 ## [Unreleased]
 
+## [1.2.4] - 2026-10-12
+
+### Fixed
+
+- **Emails could say "a a" or contradict themselves, depending on how you typed your offer.**
+  The emails write "a" before your offer, so an offer typed as "a free planning call" became
+  "there's a a free planning call waiting for you, no call needed". Now:
+  - "a" is only added when your offer needs it, and becomes "an" before a vowel ("an intro
+    session"). Offers that start with a number or "our" ("3 free months", "our starter plan")
+    get no "a" at all.
+  - "Start your …" buttons no longer read "Start your a free planning call".
+  - "no call needed" is left out when your offer is itself a call, meeting, consultation or demo.
+- **This also fixes existing setups.** The wording is fixed when each email is written, so your
+  saved email copy keeps working as it is, and you don't need to run setup again. Run
+  `sdr preview` to see your emails.
+
 ## [1.2.3] - 2026-09-30
 
 ### Changed
