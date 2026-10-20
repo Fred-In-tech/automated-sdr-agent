@@ -7,6 +7,7 @@
 
   const KIND_LABELS = { opener: 'First line of their first email', answer: 'Answer to their question' };
   const REFRESH_MS = 60000;
+  const MAX_MODELS = 24;
 
   function el(tag, attrs, children) {
     const node = document.createElement(tag);
@@ -150,9 +151,34 @@
     out.className = 'set-status ' + (data.ok ? 'set-ok' : 'set-error');
     out.appendChild(el('div', { text: data.message || '' }));
     if (data.notice) out.appendChild(el('div', { class: 'set-help', text: data.notice }));
-    if (data.models && data.models.length) {
-      out.appendChild(el('div', { class: 'set-help', text: 'Models: ' + data.models.slice(0, 12).join(', ') }));
-    }
+    if (data.models && data.models.length) out.appendChild(modelPicker(data.models));
+  }
+
+  // The models the AI server has, as buttons: one click fills in Settings > AI > Model,
+  // so nobody has to type "google/gemma-4-26b-a4b-qat" by hand. Then press Save.
+  function modelPicker(models) {
+    const input = document.getElementById('set-ai-model');
+    const wrap = el('div', {}, [el('div', { class: 'set-help', text: input
+      ? 'Your models (click one to use it, then press Save):' : 'Models: ' }) ]);
+    const list = el('div', { class: 'ai-models' });
+    // embedding models turn text into numbers; they can't write an email, so they aren't offered
+    models.filter(name => !/embed/i.test(name)).slice(0, MAX_MODELS).forEach(name => {
+      const pick = el('button', { type: 'button', class: 'ai-model', text: name,
+                                  'aria-pressed': input && input.value === name ? 'true' : 'false' });
+      if (input) {
+        pick.addEventListener('click', () => {
+          input.value = name;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          list.querySelectorAll('.ai-model').forEach(b => b.setAttribute('aria-pressed', String(b === pick)));
+          input.focus();
+        });
+      } else {
+        pick.disabled = true;
+      }
+      list.appendChild(pick);
+    });
+    wrap.appendChild(list);
+    return wrap;
   }
 
   async function testConnection(button, out) {

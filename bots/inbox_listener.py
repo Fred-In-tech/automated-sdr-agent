@@ -13,7 +13,10 @@
 
 import os
 import re
+import ssl
 import json
+import errno
+import socket
 import imaplib
 import email
 import email.utils
@@ -34,6 +37,23 @@ from core.qualify import FREEMAIL_DOMAINS
 from core.outreach_rules import add_tracking
 from core.email_design import BUTTON_TOKEN, email_style, render_branded_html, render_personal_html
 from bots.email_marketing import EmailMarketingEngine, text_to_html
+
+# "This computer has no internet right now" (Wi-Fi off, laptop waking up): not a mailbox problem
+OFFLINE_ERRNOS = {errno.ENETUNREACH, errno.ENETDOWN, errno.EHOSTUNREACH}
+OFFLINE_MESSAGE = "No internet connection: reply check skipped. The next check catches up."
+
+
+def is_offline_error(exc: BaseException) -> bool:
+    """True when the mail server couldn't be reached because this computer is offline.
+
+    A name lookup that fails, a timeout or "network unreachable". TLS/certificate errors and
+    refused logins are real problems and stay errors."""
+    if isinstance(exc, ssl.SSLError):
+        return False
+    if isinstance(exc, (socket.gaierror, TimeoutError)):
+        return True
+    return isinstance(exc, OSError) and exc.errno in OFFLINE_ERRNOS
+
 
 # Delivery-failure senders (newsletters and notifications are handled as "not a lead" instead)
 BOUNCE_SENDER_SIGNATURES = ["mailer-daemon", "postmaster", "mail-daemon"]
@@ -458,6 +478,10 @@ class InboxListenerEngine:
             return {**summary, "summary": text}
 
         except Exception as e:
+            if is_offline_error(e):
+                print(f"[IMAP] {OFFLINE_MESSAGE}")
+                log_event("InboxListener", "CheckInbox", "info", OFFLINE_MESSAGE)
+                return {"status": "skipped", "message": OFFLINE_MESSAGE, "replies_sent": 0}
             print(f"❌ [IMAP Error]: {e}")
             log_event("InboxListener", "Error", "error", str(e))
             return {"status": "error", "error": str(e), "replies_sent": 0}

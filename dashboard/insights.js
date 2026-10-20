@@ -40,6 +40,18 @@
     ]);
   }
 
+  // Problems stay open; when it all works (or only "could be better"), the details fold away
+  // so the Overview isn't one long DNS lesson.
+  function checksBlock(checks, status) {
+    if (!checks.length) return null;
+    const open = status === 'problem';
+    const counts = checks.filter(c => c.status !== 'ok' && c.status !== 'info').length;
+    return el('details', { class: 'dl-details', open: open }, [
+      el('summary', { class: 'set-help', text: counts ? counts + (counts === 1 ? ' thing' : ' things') + ' to look at'
+        : 'Show the ' + checks.length + ' checks' }),
+    ].concat(checks.map(checkRow)));
+  }
+
   function sampleLine(sample) {
     if (!sample || !(sample.spf || sample.dkim || sample.dmarc)) {
       return el('p', { class: 'set-help', text: 'Tip: run "sdr test-email" to see how a real email of yours is judged ' +
@@ -65,7 +77,7 @@
       d.cap_note ? el('div', { class: 'dl-banner', text: d.cap_note }) : null,
       status === 'unknown' ? el('p', { class: 'set-help', text: (d.message || 'Not checked yet.') +
         ' Press Check again to look up your domain\'s SPF, DKIM and DMARC.' }) : null,
-    ].concat((d.checks || []).map(checkRow), [
+    ].concat([checksBlock(d.checks || [], status)], [
       sampleLine(d.sample),
       el('div', { class: 'set-actions' }, [button, el('span', { class: 'set-help', text: when ? 'Checked ' + when : '' }), note]),
     ]));

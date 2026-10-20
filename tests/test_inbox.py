@@ -275,3 +275,28 @@ class TestBrandedWelcomeReply(InboxTestCase):
         reply = self.sent_to("sarah@bloomfilms.test")[0]
         self.assertNotIn("<table", reply.get("html", ""))
         self.assertNotIn("<img", reply.get("html", ""))
+
+
+class TestOfflineReplyCheck(InboxTestCase):
+    """No internet (Wi-Fi off, laptop waking up) is a skipped check, not a mailbox error."""
+
+    def run_failing(self, exc):
+        with mock.patch.object(inbox_listener.imaplib, "IMAP4_SSL", mock.Mock(side_effect=exc)):
+            return InboxListenerEngine(self.profile).check_inbox_and_auto_reply()
+
+    def test_offline_errors_are_skipped(self):
+        import errno
+        import socket
+        for exc in (socket.gaierror(8, "nodename nor servname provided, or not known"), TimeoutError("timed out"),
+                    OSError(errno.ENETUNREACH, "Network is unreachable")):
+            with self.subTest(exc=exc):
+                result = self.run_failing(exc)
+                self.assertEqual(result["status"], "skipped")
+                self.assertIn("No internet", result["message"])
+
+    def test_real_problems_stay_errors(self):
+        import ssl
+        for exc in (ssl.SSLCertVerificationError("certificate verify failed"), ConnectionRefusedError(61, "refused"),
+                    inbox_listener.imaplib.IMAP4.error("LOGIN failed")):
+            with self.subTest(exc=exc):
+                self.assertEqual(self.run_failing(exc)["status"], "error")

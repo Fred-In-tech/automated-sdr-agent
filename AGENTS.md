@@ -378,9 +378,10 @@ core/
   updater.py            release check, update with backup + test + rollback
   dashboard_auth.py     dashboard password hashing, sessions, CSRF, login rate limit
   db.py                 SQLite (data/automations.db)
+  today.py              the dashboard's Today strip (sent vs. limit, next run, follow-ups due)
   qualify.py intent.py outreach_rules.py email_design.py email_verifier.py ai.py report.py notifications.py
 bots/                   leadgen_pipeline.py (+ lead_store.py), email_marketing.py, inbox_listener.py, digest.py
-dashboard/              server.py (localhost-only web server) + index.html + settings.js (Settings tab)
+dashboard/              server.py (localhost-only web server) + index.html, app.css, app.js (Overview), tables.js (Leads, Emails) + one script per tab
 config/                 profile.example.toml (documented template); profile.toml and do_not_contact.txt are the user's own (gitignored)
 data/                   the user's database, logs, backups, update_status.json (gitignored)
 tests/                  offline pytest suite
