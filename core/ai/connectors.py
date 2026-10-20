@@ -15,6 +15,7 @@ failure becomes an AIError with a plain-English fix, and API keys are scrubbed f
 from __future__ import annotations
 
 import json
+import re
 import socket
 import urllib.error
 import urllib.request
@@ -24,6 +25,7 @@ from typing import Callable, Iterable
 from core.ai.providers import AIConfig, url_problem
 
 ANTHROPIC_VERSION = "2023-06-01"
+THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
 MAX_ERROR_TEXT = 300
 Opener = Callable[..., object]
 
@@ -87,7 +89,21 @@ def _headers(cfg: AIConfig) -> dict[str, str]:
     return headers
 
 
+def _clean(text: str) -> str:
+    """Remove reasoning that some local models write inline (<think>...</think>)."""
+    return THINK_BLOCK.sub("", text or "").strip()
+
+
+def _out_of_room(cfg: AIConfig) -> AIError:
+    return AIError(f"{cfg.model} used its whole answer length on thinking and wrote no answer. "
+                   "Pick a non-thinking model, or turn thinking off for it in the AI app.")
+
+
 def _explain_http(cfg: AIConfig, code: int, detail: str) -> str:
+    lowered = detail.lower()
+    if "failed to load model" in lowered or "insufficient system resources" in lowered or "out of memory" in lowered:
+        return (f"{cfg.label} couldn't load '{cfg.model}' (not enough memory). Pick a smaller model, "
+                "or close other models in the app first.")
     if code in (401, 403):
         return f"{cfg.label} rejected the key ({code}). Check the AI key in Settings > AI."
     if code == 404 and ("model" in detail.lower() or cfg.adapter == "ollama"):
@@ -174,9 +190,12 @@ def _chat_openai(cfg, system, user, schema, max_tokens, opener) -> Reply:
                 continue          # this server doesn't do that JSON mode: step down the ladder
             raise
         try:
-            text = data["choices"][0]["message"]["content"] or ""
+            choice = data["choices"][0]
+            text = _clean(choice["message"]["content"] or "")
         except (KeyError, IndexError, TypeError):
             raise AIError(f"{cfg.label} sent back an answer in an unexpected format.") from None
+        if not text and choice.get("finish_reason") == "length":
+            raise _out_of_room(cfg)
         usage = data.get("usage") or {}
         return Reply(text, int(usage.get("prompt_tokens") or 0), int(usage.get("completion_tokens") or 0))
     raise AIError(f"{cfg.label} rejected every request format.")
@@ -190,7 +209,9 @@ def _chat_anthropic(cfg, system, user, schema, max_tokens, opener) -> Reply:
     blocks = data.get("content")
     if not isinstance(blocks, list):
         raise AIError(f"{cfg.label} sent back an answer in an unexpected format.")
-    text = "".join(b.get("text", "") for b in blocks if isinstance(b, dict) and b.get("type") == "text")
+    text = _clean("".join(b.get("text", "") for b in blocks if isinstance(b, dict) and b.get("type") == "text"))
+    if not text and data.get("stop_reason") == "max_tokens":
+        raise _out_of_room(cfg)
     usage = data.get("usage") or {}
     return Reply(text, int(usage.get("input_tokens") or 0), int(usage.get("output_tokens") or 0))
 
@@ -205,8 +226,10 @@ def _chat_ollama(cfg, system, user, schema, max_tokens, opener) -> Reply:
     message = data.get("message")
     if not isinstance(message, dict):
         raise AIError(f"{cfg.label} sent back an answer in an unexpected format.")
-    return Reply(str(message.get("content") or ""), int(data.get("prompt_eval_count") or 0),
-                 int(data.get("eval_count") or 0))
+    text = _clean(str(message.get("content") or ""))
+    if not text and data.get("done_reason") == "length":
+        raise _out_of_room(cfg)
+    return Reply(text, int(data.get("prompt_eval_count") or 0), int(data.get("eval_count") or 0))
 
 
 _ADAPTERS = {"openai": _chat_openai, "anthropic": _chat_anthropic, "ollama": _chat_ollama}

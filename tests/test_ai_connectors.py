@@ -166,6 +166,29 @@ class TestErrors(unittest.TestCase):
             chat(cfg("openai"), "s", "u", opener=FakeOpener({"weird": True}))
 
 
+class TestThinkingModels(unittest.TestCase):
+    def test_reasoning_used_the_whole_budget_is_a_clear_error(self):
+        out_of_room = {"choices": [{"message": {"content": "", "reasoning_content": "thinking..."},
+                                    "finish_reason": "length"}]}
+        with self.assertRaises(AIError) as err:
+            chat(cfg("lmstudio", mode="local_only"), "s", "u", opener=FakeOpener(out_of_room))
+        self.assertIn("thinking", str(err.exception))
+
+    def test_inline_think_blocks_are_removed(self):
+        reply = {"choices": [{"message": {"content": "<think>let me plan</think>\nYour rooftop venue looks calm."}}]}
+        self.assertEqual(chat(cfg("openai"), "s", "u", opener=FakeOpener(reply)).text, "Your rooftop venue looks calm.")
+        ollama = {"message": {"content": "<think>x</think>{\"intent\": \"question\"}"}}
+        self.assertEqual(chat(cfg("ollama", mode="local_only"), "s", "u", opener=FakeOpener(ollama)).text,
+                         '{"intent": "question"}')
+
+    def test_model_too_big_to_load(self):
+        error = http_error(400, '{"error": {"message": "Failed to load model \\"big\\". Error: insufficient system resources"}}')
+        with self.assertRaises(AIError) as err:
+            chat(cfg("lmstudio", mode="local_only"), "s", "u", opener=FakeOpener(error))
+        self.assertIn("couldn't load", str(err.exception))
+        self.assertIn("smaller model", str(err.exception))
+
+
 class TestHelpers(unittest.TestCase):
     def test_extract_json(self):
         self.assertEqual(extract_json('Sure! {"intent": "question"} done'), {"intent": "question"})

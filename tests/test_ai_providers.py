@@ -69,6 +69,11 @@ class TestLoadConfig(unittest.TestCase):
         self.assertEqual(c.jobs["answer_questions"], JOB_DEFAULTS["answer_questions"])
         self.assertEqual(c.jobs["reply_intent"], "auto")
 
+    def test_local_ai_gets_longer_to_answer(self):
+        self.assertEqual(cfg({"mode": "local_only", "provider": "ollama"}).timeout, 120.0)
+        self.assertEqual(cfg({"mode": "hosted", "provider": "openai"}).timeout, 60.0)
+        self.assertEqual(cfg({"mode": "local_only", "provider": "ollama", "timeout_seconds": 30}).timeout, 30.0)
+
     def test_timeout_and_budget_are_numbers(self):
         c = cfg({"mode": "hosted", "provider": "openai", "timeout_seconds": "nope", "monthly_budget_usd": 5})
         self.assertEqual((c.timeout, c.monthly_budget_usd), (60.0, 5.0))

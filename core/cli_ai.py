@@ -12,7 +12,7 @@ from typing import Callable, Mapping
 
 from core.ai import drafts
 from core.ai.connectors import AIError, chat, extract_json, list_models
-from core.ai.jobs import TRIAGE_SCHEMA, TRIAGE_SYSTEM, is_valid_answer, is_valid_opener
+from core.ai.jobs import ANSWER_ROOM, TRIAGE_SCHEMA, TRIAGE_SYSTEM, is_valid_answer, is_valid_opener
 from core.ai.providers import AIConfig, data_notice, load_ai_config, url_problem
 from core.intent import INTENTS
 from core.product import CLI_NAME
@@ -51,7 +51,7 @@ def check_connection(cfg: AIConfig, *, list_fn: Callable = list_models, chat_fn:
         return result
     start = clock()
     try:
-        reply = chat_fn(cfg, TRIAGE_SYSTEM, TEST_REPLY, schema=TRIAGE_SCHEMA, max_tokens=60)
+        reply = chat_fn(cfg, TRIAGE_SYSTEM, TEST_REPLY, schema=TRIAGE_SCHEMA, max_tokens=ANSWER_ROOM)
     except AIError as exc:
         result["message"] = str(exc)
         return result
