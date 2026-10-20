@@ -42,6 +42,22 @@ forward to one of those tags, and it shows you the notes below before it does.
   "AI" phrases, no prices that aren't in your facts. Website text and replies are treated as data,
   never as instructions. AI text in emails is escaped, so it can't add HTML.
 - Unsubscribes are always decided by the built-in rules first, never by the AI.
+- AI text is refused when it contains a web address (even without "https"), a phone number,
+  payment or account wording ("invoice", "verify", "password"...), or a discount, percentage,
+  amount or guarantee that isn't in your facts. This stops a lead's website from steering the AI
+  into writing something you'd never send.
+- "AI on this computer" checks where an address really points, so it can't be tricked into
+  reaching the internet. Redirects are never followed, and the AI key setting can't point at
+  your mailbox password.
+- Approved answers are checked again right before sending, and never go to someone who has
+  unsubscribed, bounced or is on your do-not-contact list, including in the same inbox check.
+
+### Reliability
+
+- A lead whose first line is waiting for review never holds up the others: it doesn't use a
+  sending slot, and a first line nobody reviews within 3 days falls back to your standard one.
+- One bad draft can't stop the inbox check, and a draft is always saved together with the lead's
+  new status.
 
 ### Changed
 
