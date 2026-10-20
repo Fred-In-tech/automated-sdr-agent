@@ -235,6 +235,7 @@ or off, check for updates, run a health check.
 | `sdr resume` | Starts sending again after a bounce-rate pause. The bounce limit stays the same |
 | `sdr ai test` | Checks your AI (Settings > AI): lists its models and asks one tiny question. Shows what data leaves the computer. Sends no email |
 | `sdr drafts` | Shows AI drafts waiting for your review (first lines, answers to questions) and lets you approve, edit or skip them |
+| `sdr followups` | Today's follow-ups: every lead who replied with interest, with its next step and due date (overdue first). Mark them done on the dashboard's Follow-ups tab. Sends nothing |
 | `sdr requalify` | Re-scores leads saved before fit scoring existed (`--dry-run` to preview) |
 
 These print their result as JSON. `python3 cli.py <command>` is the same as `sdr <command>`.

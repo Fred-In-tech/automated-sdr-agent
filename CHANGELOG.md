@@ -9,6 +9,25 @@ forward to one of those tags, and it shows you the notes below before it does.
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-20
+
+### Added
+
+- **Follow-ups tab: what happens after someone says "interested".** Every lead who replies with
+  interest or a question becomes a deal with one next step and a due date ("Reply to Sarah and
+  suggest a call", due tomorrow), saved in the same step as the reply, so nobody slips through.
+  - **Today list:** overdue first, then due today, then deals with no next step, then upcoming.
+  - **Done** asks what happens next (with a date and stage), or closes the deal as **Won** (with
+    its value) or **Lost**, so every open deal always has a next step.
+  - **Snooze** to tomorrow, +3 days or next Monday; a **Stale** badge after 5 days in one stage.
+  - **Reply** opens your own mail app. The tab never sends anything.
+  - **Pipeline board** (Replied, Meeting, Proposal, Won, Lost) with counts and values, once you
+    have 3 or more deals.
+  - **Numbers:** due now, open deals and their value, won deals, and **revenue per 100 first
+    emails**, the number that shows whether the outreach pays.
+- The daily digest email lists follow-ups that are overdue or due today.
+- `sdr followups` shows the same Today list in the terminal.
+
 ## [1.3.2] - 2026-10-20
 
 ### Removed
