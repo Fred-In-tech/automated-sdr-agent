@@ -82,7 +82,9 @@ class TestChecks(unittest.TestCase):
 
     def test_custom_dkim_selector_found_by_sample(self):
         records = {k: v for k, v in HOSTINGER_OK.items() if "_domainkey" not in k[0]}
-        result = run(records, sample={"dkim": "pass", "spf": "pass", "dmarc": "pass", "seen_by": "mx.google.com"})
+        sample = {"dkim": "pass", "spf": "pass", "dmarc": "pass", "seen_by": "mx.google.com", "domain": DOMAIN,
+                  "checked_at": datetime.now(timezone.utc).isoformat()}
+        result = run(records, sample=sample)
         self.assertEqual(by_key(result)["dkim"]["status"], "ok")
         self.assertIn("sample", by_key(result)["dkim"]["detail"])
 

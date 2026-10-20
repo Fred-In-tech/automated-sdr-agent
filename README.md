@@ -272,6 +272,31 @@ Promotions.
 Nothing can guarantee the Primary tab. Sending from your own domain, warming up slowly (see
 [sending limits](#play-by-the-rules)) and keeping emails short and personal all help.
 
+## Will your emails land?
+
+Gmail, Yahoo and Microsoft expect cold email to prove where it comes from with three DNS records
+on your domain: **SPF**, **DKIM** and **DMARC**. Without them, emails quietly go to spam.
+
+- `sdr doctor` and the **Deliverability** card on the dashboard's Overview check your sending
+  domain once a day and say what's missing, with the exact record to add for your email provider
+  (Google Workspace, Microsoft 365, Hostinger, Zoho or others) and a **Copy record** button.
+- If SPF, DKIM or your MX record is missing, sending is **limited to 5 a day** until it's fixed, so
+  a broken setup can't hurt your domain. DMARC at `p=none` is a warning only. (To turn the limit off, set
+  `deliverability_cap = false` under `[outreach]`.) A provider whose DKIM names we don't know gets a
+  warning, not a limit: `sdr test-email` confirms whether DKIM passes.
+- `sdr test-email` to your own mailbox also reads how the sample arrived: whether SPF, DKIM and
+  DMARC passed, and whether it landed in the inbox or spam.
+- If you send cold email from your main business domain, you'll see a note about using a second
+  domain for outreach.
+
+**Leads that need your OK.** Leads that clearly fit (fit score at or above `auto_send_score`, 70 by
+default) are emailed as before. Leads that qualify but only just wait on the dashboard's **Needs
+you** card (or `sdr review`) with the reasons for their score: Approve or Reject. Leads left
+unreviewed for 7 days are skipped. Change the score in **Settings > Your ideal clients**.
+
+**Results funnel.** The Overview and `sdr report` show first emails sent, delivered, replied,
+interested, meetings and won deals, built on replies and outcomes, never on opens.
+
 ## Your AI
 
 AI is optional and off until you turn it on. Everything works without it, and if your AI is
@@ -434,7 +459,7 @@ Change settings with `sdr setup --section <name>`, or edit `config/profile.toml`
 | Section | Main settings |
 |---|---|
 | `[sender]` | `product_name`, `product_url` (where "try it" links go), `website`, `from_name`, `from_email` (optional alias), `sign_off`, `offer`, `pitch`, `postal_address`, `require_postal_address` |
-| `[targeting]` | `ideal_client`, `professions` (job titles to search), `cities`, `search_engine`, `leads_per_run`, `min_fit_score`, `buying_signals`, `disqualify_words`, `skip_domains`, `search_extra_words`, `keywords`, `thumbtack_categories`, `thumbtack_city_category` |
+| `[targeting]` | `ideal_client`, `professions` (job titles to search), `cities`, `search_engine`, `leads_per_run`, `min_fit_score`, `auto_send_score`, `buying_signals`, `disqualify_words`, `skip_domains`, `search_extra_words`, `keywords`, `thumbtack_categories`, `thumbtack_city_category` |
 | `[outreach]` | `emails_per_run`, `daily_send_limit`, `seconds_between_emails`, `send_days`, `send_window`, `max_bounce_rate`, `track_links`, `utm_campaign`, `subject`, `subject_variants` (A/B test), `default_opener`, `body`, `button`, `unsubscribe_line`, then `[[outreach.follow_ups]]` (`days_after_previous`, `body`, `button`) and `[outreach.not_now_follow_up]` |
 | `[email_design]` | `style` (`"personal"` or `"branded"`), `logo_url`, `brand_color`, `heading_color`, `text_color`, `background`, `tagline`, `highlights`, `signature_logo_url`, `signature_logo_test` |
 | `[auto_reply]` | `enabled`, `lookback_days`, `opt_out_words`, `branded_intents`, then `[auto_reply.replies]` (`interested`, `question`, `not_now`) and `[auto_reply.buttons]` |

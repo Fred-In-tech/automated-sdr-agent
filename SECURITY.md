@@ -51,7 +51,8 @@ Nothing is sent to the author, and there's no telemetry or analytics. The tool o
   a business it's looking up;
 - the websites of the businesses it researches (and Thumbtack listings, if you set categories),
   respecting robots.txt;
-- your mail server;
+- your mail server (and, after `sdr test-email`, your own inbox, read-only, to see how the sample arrived);
+- public DNS, to look up your own sending domain's MX, SPF, DKIM and DMARC records (once a day);
 - GitHub, with a `git fetch` to check for updates;
 - your AI, only if you turn it on (`[ai]`). With **AI on this computer** (Ollama, LM Studio...)
   it connects only to that app on your computer or local network, and nothing leaves it; local-only

@@ -38,18 +38,20 @@ def _header_bytes(data) -> bytes:
 def _look(mail, message_id: str) -> dict | None:
     for folder in FOLDERS:
         try:
-            status, _ = mail.select(folder, readonly=True)
+            status, _ = mail.select(f'"{folder}"', readonly=True)   # names like "Junk Email" need quotes
         except imaplib.IMAP4.error:
             continue
         if status != "OK":
             continue
-        status, found = mail.search(None, "HEADER", "Message-ID", message_id)
+        status, found = mail.search(None, "HEADER", "Message-ID", f'"{message_id}"')
         ids = (found[0] or b"").split() if status == "OK" and found else []
         if not ids:
             continue
         status, data = mail.fetch(ids[-1], "(BODY.PEEK[HEADER.FIELDS (AUTHENTICATION-RESULTS)])")
         raw = _header_bytes(data).decode("utf-8", "replace")
-        value = raw.split(":", 1)[1] if ":" in raw else ""
+        # Only the topmost header: the receiving server's own verdict (lower ones are earlier hops).
+        first = raw.split("\nAuthentication-Results:", 1)[0]
+        value = first.split(":", 1)[1] if ":" in first else ""
         return {**parse_authentication_results(value), "folder": folder, "spam": folder in SPAM_FOLDERS}
     return None
 
