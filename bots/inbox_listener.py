@@ -41,6 +41,27 @@ from bots.email_marketing import EmailMarketingEngine, text_to_html
 # "This computer has no internet right now" (Wi-Fi off, laptop waking up): not a mailbox problem
 OFFLINE_ERRNOS = {errno.ENETUNREACH, errno.ENETDOWN, errno.EHOSTUNREACH}
 OFFLINE_MESSAGE = "No internet connection: reply check skipped. The next check catches up."
+# A wrong mail server name or a server that's down looks the same as "offline" from here, so after
+# this many skipped checks in a row it is reported as an error instead of staying quiet.
+OFFLINE_SKIPS_BEFORE_ERROR = 3
+UNREACHABLE_MESSAGE = ("Can't reach your mail server ({count} reply checks in a row). If your internet works, "
+                       "check the mail server (IMAP) settings: sdr setup --section email, or Settings > Email.")
+
+
+def _offline_skips_in_a_row() -> int:
+    """How many of the latest reply checks couldn't reach the server (the activity log is the memory)."""
+    conn = get_connection()
+    try:
+        rows = conn.execute("SELECT details FROM bot_logs WHERE bot_name = 'InboxListener' "
+                            "ORDER BY id DESC LIMIT ?", (OFFLINE_SKIPS_BEFORE_ERROR + 1,)).fetchall()
+    finally:
+        conn.close()
+    count = 0
+    for (details,) in rows:
+        if not (details == OFFLINE_MESSAGE or (details or "").startswith(UNREACHABLE_MESSAGE.split(" (")[0])):
+            break   # the streak ends at the last check that reached the server
+        count += 1
+    return count
 
 
 def is_offline_error(exc: BaseException) -> bool:
@@ -479,9 +500,15 @@ class InboxListenerEngine:
 
         except Exception as e:
             if is_offline_error(e):
-                print(f"[IMAP] {OFFLINE_MESSAGE}")
-                log_event("InboxListener", "CheckInbox", "info", OFFLINE_MESSAGE)
-                return {"status": "skipped", "message": OFFLINE_MESSAGE, "replies_sent": 0}
+                in_a_row = _offline_skips_in_a_row() + 1
+                if in_a_row < OFFLINE_SKIPS_BEFORE_ERROR:
+                    print(f"[IMAP] {OFFLINE_MESSAGE}")
+                    log_event("InboxListener", "CheckInbox", "info", OFFLINE_MESSAGE)
+                    return {"status": "skipped", "message": OFFLINE_MESSAGE, "replies_sent": 0}
+                message = UNREACHABLE_MESSAGE.format(count=in_a_row)
+                print(f"❌ [IMAP Error]: {message} ({e})")
+                log_event("InboxListener", "Error", "error", f"{message} ({e})")
+                return {"status": "error", "error": message, "replies_sent": 0}
             print(f"❌ [IMAP Error]: {e}")
             log_event("InboxListener", "Error", "error", str(e))
             return {"status": "error", "error": str(e), "replies_sent": 0}
