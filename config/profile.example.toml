@@ -73,6 +73,9 @@ leads_per_run = 4
 # Each lead gets a 0-100 fit score (see `sdr report`). Below this, it's
 # saved as "disqualified" and never emailed.
 min_fit_score = 50
+# Qualified leads scoring at least this are emailed automatically; lower ones wait for your OK on the
+# dashboard (Needs you) or with `sdr review`, and are skipped after 7 days. 0 = never ask.
+auto_send_score = 70
 # Words on a website that suggest they sell packages/quotes (i.e. they feel the pain you solve).
 buying_signals = ["packages", "pricing", "investment", "inquire", "book now", "quote", "check availability"]
 # Words that mean "big company / shop, not a small business" -> rejected.
@@ -117,6 +120,7 @@ Would it be useful for {{company}}?
 # Opt-out line (legally required). A human wording keeps you out of Promotions.
 unsubscribe_line = "If this isn't relevant, just let me know and I won't reach out again."
 # list_unsubscribe_header = false  # true only if you send in bulk (thousands/day); it marks mail as bulk
+# deliverability_cap = true      # false: keep sending at your full limit even while SPF/DKIM/MX has a problem
 
 # Follow-ups reply in the same thread ("Re: <subject>"). Each should add something new.
 [[outreach.follow_ups]]

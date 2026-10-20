@@ -9,6 +9,31 @@ forward to one of those tags, and it shows you the notes below before it does.
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-10-20
+
+### Added
+
+- **Will your emails land? A deliverability check.** Your sending domain's MX, SPF, DKIM and DMARC
+  records are checked once a day (and on demand). Each one is OK, a warning or a problem, explained
+  in plain words with the exact record to add for your provider (Google Workspace, Microsoft 365,
+  Hostinger, Zoho...) and a **Copy record** button. It's in `sdr doctor` and on a new
+  **Deliverability** card on the dashboard's Overview.
+- **Safe sending while something's broken.** With no SPF, no DKIM or no MX record, sending is
+  limited to 5 emails a day until it's fixed, so a broken setup can't burn your domain. You see why
+  in the dashboard, `sdr doctor` and the daily digest. Warnings (like DMARC at `p=none`) never limit
+  sending, and a failed DNS lookup never does either. To turn the limit off, set `deliverability_cap = false` under
+  `[outreach]`. For a provider whose DKIM names aren't known, a missing DKIM record is a warning
+  (confirm it with `sdr test-email`), never a limit.
+- **Proof from a real email.** `sdr test-email` to your own mailbox now reads how the sample
+  arrived: whether SPF, DKIM and DMARC passed, and whether it landed in the inbox or spam.
+- **Sending-domain note** when cold email goes out from your main business domain.
+- **Borderline leads wait for your OK.** Leads that clearly fit (`auto_send_score`, 70 by default)
+  are emailed as before; leads that only just qualify wait on the **Needs you** card (or
+  `sdr review`) with the reasons for their score. Approve or Reject; unreviewed leads are skipped
+  after 7 days and never hold up the others. Set the score in Settings > Your ideal clients.
+- **Results funnel** on the Overview, in `sdr report` and the daily digest: first emails sent,
+  delivered, replied, interested, meetings and won deals, built on replies, never on opens.
+
 ## [1.4.1] - 2026-10-20
 
 ### Security

@@ -128,13 +128,13 @@ def cmd_test_email(ui: UI, to: str | None = None, step: int = 1, reply: str | No
     if result["sent"]:
         ui.success(f"Sent! Check the inbox at {recipient} (and the spam folder).")
         if check_arrival if check_arrival is not None else engine is None:
-            _report_arrival(ui, recipient, result.get("message_id"))
+            _report_arrival(ui, recipient, result.get("message_id"), profile)
         return 0
     ui.error(f"Not sent. Check your email login with `{CLI_NAME} doctor` (or `{CLI_NAME} setup --section email`).")
     return 1
 
 
-def _report_arrival(ui: UI, recipient: str, message_id: str | None) -> None:
+def _report_arrival(ui: UI, recipient: str, message_id: str | None, profile: dict) -> None:
     """Read the delivered sample's SPF/DKIM/DMARC verdict, when it went to your own mailbox."""
     from core import deliverability
     from core.sample_proof import describe_verdict, fetch_auth_verdict
@@ -143,7 +143,7 @@ def _report_arrival(ui: UI, recipient: str, message_id: str | None) -> None:
     with ui.spinner("Checking how it arrived (a few seconds)"):
         verdict = fetch_auth_verdict(message_id)
     if verdict and any(verdict.get(k) for k in ("spf", "dkim", "dmarc")):
-        deliverability.save_sample(verdict)
+        deliverability.save_sample(verdict, domain=deliverability.sending_domain(profile, os.environ))
     (ui.warn if verdict and (verdict.get("spam") or any(verdict.get(k) not in (None, "pass") for k in ("spf", "dkim", "dmarc")))
      else ui.info)(describe_verdict(verdict))
 

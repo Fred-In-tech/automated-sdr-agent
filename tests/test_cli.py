@@ -155,7 +155,7 @@ class TestTestEmail(TempInstall):
                 mock.patch("core.deliverability.save_sample") as save:
             self.assertEqual(cli.cmd_test_email(ui, engine=FakeEngine(), check_arrival=True), 0)
         fetch.assert_called_once()
-        save.assert_called_once_with(verdict)
+        self.assertEqual(save.call_args.args[0], verdict)
         self.assertIn("all passed", out.getvalue())
 
     def test_no_arrival_check_for_someone_elses_address(self):

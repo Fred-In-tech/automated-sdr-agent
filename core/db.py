@@ -253,7 +253,7 @@ def get_db_stats():
     cursor.execute("SELECT COUNT(*) FROM leads")
     total_leads = cursor.fetchone()[0]
 
-    cursor.execute("SELECT COUNT(*) FROM leads WHERE sequence_step > 0 OR status NOT IN ('new', 'disqualified', 'invalid_email')")
+    cursor.execute("SELECT COUNT(*) FROM leads WHERE sequence_step > 0 OR status NOT IN ('new', 'review', 'disqualified', 'invalid_email')")
     contacted_leads = cursor.fetchone()[0]
 
     cursor.execute("SELECT COUNT(*) FROM email_campaigns")

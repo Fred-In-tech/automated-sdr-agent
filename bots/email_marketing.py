@@ -229,7 +229,8 @@ class EmailMarketingEngine:
         except Exception as exc:  # noqa: BLE001 - a check that breaks must never stop sending
             log_event("EmailMarketingEngine", "Deliverability", "warning", f"Check skipped: {exc}")
             return self.daily_limit
-        limit, note = deliverability.capped_limit(self.daily_limit, result)
+        enabled = self.profile.get("outreach", {}).get("deliverability_cap", True) is not False
+        limit, note = deliverability.capped_limit(self.daily_limit, result, enabled=enabled)
         if note:
             print(f"⚠️  [Deliverability]: {note}")
             log_event("EmailMarketingEngine", "Deliverability", "warning", note)

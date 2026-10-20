@@ -15,6 +15,7 @@ class FakeIMAP:
         self.readonly = []
 
     def select(self, folder, readonly=False):
+        folder = folder.strip('"')          # real servers get quoted names
         self.readonly.append(readonly)
         if folder in self.missing:
             return "NO", [b"no such folder"]

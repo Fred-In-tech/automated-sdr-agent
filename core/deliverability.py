@@ -26,6 +26,7 @@ from core.email_checks import FREEMAIL_PROVIDERS, MX_PROVIDERS
 
 DELIVERABILITY_CAP = 5           # emails a day while a Problem is unfixed
 REFRESH_EVERY = timedelta(hours=24)
+SAMPLE_VALID_FOR = timedelta(days=30)
 COMMON_SELECTORS = ("default", "dkim", "mail", "k1", "s1", "s2", "selector1", "selector2", "google")
 PROVIDER_INFO = {
     "google_workspace": {"label": "Google Workspace", "spf": "include:_spf.google.com", "spf_match": ("_spf.google.com",),
@@ -115,7 +116,7 @@ def _spf(domain: str, txt: list[str], info: dict) -> dict:
     return _check("spf", "SPF", "ok", "SPF is set up.")
 
 
-def _dkim(domain: str, resolve: Callable, info: dict, sample: Mapping | None) -> dict:
+def _dkim(domain: str, resolve: Callable, info: dict, sample: Mapping | None, known_provider: bool) -> dict:
     for selector in dict.fromkeys(info["selectors"] + COMMON_SELECTORS):
         for text in resolve(f"{selector}._domainkey.{domain}", "TXT"):
             key = re.search(r"(?:^|;)\s*p=([^;\s]*)", text)
@@ -123,6 +124,12 @@ def _dkim(domain: str, resolve: Callable, info: dict, sample: Mapping | None) ->
                 return _check("dkim", "DKIM", "ok", f"DKIM is set up (selector {selector}).")
     if sample and sample.get("dkim") == "pass":
         return _check("dkim", "DKIM", "ok", "DKIM passed on your sample email (a custom selector).")
+    if not known_provider:
+        # We don't know this provider's selector names, so "not found" may just mean "not looked
+        # in the right place": a warning, never a sending cap.
+        return _check("dkim", "DKIM", "warning", "Couldn't find a DKIM record under the usual names.",
+                      "Send yourself a sample with `sdr test-email` to confirm DKIM passes. If it doesn't, turn on DKIM "
+                      "signing in your email provider's settings and add the record it gives you.")
     return _check("dkim", "DKIM", "problem", "No DKIM signature record found: emails can't prove they really came from you.",
                   info["dkim_fix"])
 
@@ -140,6 +147,29 @@ def _dmarc(domain: str, resolve: Callable) -> dict:
                       "When SPF and DKIM pass reliably, change it to p=quarantine.",
                       re.sub(r"p\s*=\s*none", "p=quarantine", records[0], flags=re.IGNORECASE))
     return _check("dmarc", "DMARC", "ok", f"DMARC is set up (p={policy.group(1)}).")
+
+
+def usable_sample(sample: Mapping | None, domain: str | None, now: datetime | None = None) -> Mapping | None:
+    """A sample verdict counts only for the same sending domain, while recent, and when DMARC
+    didn't fail (a DKIM pass for someone else's domain, like a provider's default, isn't yours)."""
+    if not sample or not domain or sample.get("domain") != domain or sample.get("dmarc") == "fail":
+        return None
+    try:
+        age = (now or datetime.now(timezone.utc)) - datetime.fromisoformat(sample["checked_at"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    return sample if age <= SAMPLE_VALID_FOR else None
+
+
+def _mx(domain: str, mx: list[str], resolve: Callable, info: dict) -> dict:
+    if mx:
+        return _check("mx", "MX (replies)", "ok", "Your domain can receive replies.")
+    parent = domain.split(".", 1)[1] if domain.count(".") >= 2 else ""
+    if parent and resolve(parent, "MX"):
+        return _check("mx", "MX (replies)", "warning", f"{domain} has no MX record of its own; {parent} does.",
+                      f"Make sure replies to {domain} addresses reach you (or send from an {parent} address).")
+    return _check("mx", "MX (replies)", "problem", "Your domain has no MX record, so replies and bounces can't reach you.",
+                  f"Add the MX records {info['label']} gives you.")
 
 
 def overall(checks: list[dict]) -> str:
@@ -165,11 +195,9 @@ def run_checks(profile: Mapping, env: Mapping[str, str], *, resolve: Callable[[s
         provider = _provider(mx, env)
         info = PROVIDER_INFO.get(provider, OTHER)
         checks = [
-            _check("mx", "MX (replies)", "ok", "Your domain can receive replies.") if mx else
-            _check("mx", "MX (replies)", "problem", "Your domain has no MX record, so replies and bounces can't reach you.",
-                   f"Add the MX records {info['label']} gives you."),
+            _mx(domain, mx, resolve, info),
             _spf(domain, resolve(domain, "TXT"), info),
-            _dkim(domain, resolve, info, sample),
+            _dkim(domain, resolve, info, usable_sample(sample, domain), provider in PROVIDER_INFO),
             _dmarc(domain, resolve),
         ]
     except DNSUnavailable as exc:
@@ -210,9 +238,9 @@ def _save(data: dict, path: str | None) -> None:
     os.replace(temporary, target)
 
 
-def save_sample(sample: Mapping, path: str | None = None) -> None:
+def save_sample(sample: Mapping, path: str | None = None, domain: str | None = None) -> None:
     data = load(path)
-    data["sample"] = {**sample, "checked_at": datetime.now(timezone.utc).isoformat()}
+    data["sample"] = {**sample, "domain": domain, "checked_at": datetime.now(timezone.utc).isoformat()}
     _save(data, path)
 
 
@@ -227,7 +255,7 @@ def refresh_if_stale(profile: Mapping, env: Mapping[str, str], *, now: datetime 
         fresh_enough = now - datetime.fromisoformat(cached["checked_at"]) < REFRESH_EVERY
     except (KeyError, TypeError, ValueError):
         fresh_enough = False
-    if cached.get("checks") is not None and fresh_enough and not force \
+    if cached.get("checks") is not None and fresh_enough and not force and cached.get("status") != "unknown" \
             and cached.get("domain") == sending_domain(profile, env):
         return cached
     result = run_checks(profile, env, resolve=resolve, sample=sample)
@@ -244,9 +272,10 @@ def problems(result: Mapping) -> list[dict]:
     return [c for c in result.get("checks") or [] if c.get("status") == "problem"]
 
 
-def capped_limit(limit: int, result: Mapping) -> tuple[int, str]:
-    """(daily limit to use, why it's lower). A Problem caps sending until it's fixed."""
-    if result.get("status") != "problem" or limit <= DELIVERABILITY_CAP:
+def capped_limit(limit: int, result: Mapping, enabled: bool = True) -> tuple[int, str]:
+    """(daily limit to use, why it's lower). A Problem caps sending until it's fixed, unless the
+    owner turned the cap off ([outreach] deliverability_cap = false)."""
+    if not enabled or result.get("status") != "problem" or limit <= DELIVERABILITY_CAP:
         return limit, ""
     found = [c.get("label", c.get("key", "")) for c in problems(result)]
     names = (", ".join(found[:-1]) + " and " + found[-1]) if len(found) > 1 else (found[0] if found else "a DNS problem")
