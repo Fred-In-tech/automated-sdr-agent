@@ -244,11 +244,21 @@ mode = "notify"                    # "notify" (tell me in the digest), "auto" (i
 alert_email = ""
 daily_digest = true                 # one summary email per day: pipeline, replies, what's next
 
-# ── Optional: Claude AI (needs ANTHROPIC_API_KEY in .env + `pip install anthropic`) ──
+# ── Optional: your own AI (set up with `sdr setup --section ai` or Settings > AI) ──
+# Off by default. Every AI job falls back to the built-in rules, so AI never stops outreach.
 [ai]
-enabled = false
-# Writes a personal first line for each lead from their website ({{opener}}) and reads replies.
-model = "claude-opus-5"
+mode = "off"                 # off | local_only (Ollama, LM Studio...: nothing leaves this computer) | hosted
+provider = "ollama"          # ollama, lmstudio, llamacpp, vllm, jan, openai, anthropic, gemini, groq, openrouter, mistral, azure, custom
+model = ""                   # e.g. "llama3.2" (`ollama list`), "gpt-4.1-mini", "claude-sonnet-4-5"
+base_url = ""                # blank = the provider's usual address; needed for azure and custom
+facts = ""                   # prices, what's included, FAQ: the only facts AI answers may use
+openers = "auto"             # personal first line ({{opener}}): review | auto | off
+reply_intent = "auto"        # sort replies: auto | off
+answer_questions = "review"  # draft answers to questions: review | auto | off
+lead_fit = "auto"            # one line on why a lead fits: auto | off
+monthly_budget_usd = 0       # hosted AI only: pause AI for the month at this estimate (0 = no limit)
+# timeout_seconds = 120      # default 120 for AI on your computer, 60 for hosted
+# The hosted key lives in .env as AI_API_KEY (setup saves it there), never in this file.
 
 # ── Social posts (drafts only — nothing is posted to X/Twitter) ──────
 [social]
