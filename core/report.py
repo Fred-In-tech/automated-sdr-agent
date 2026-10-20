@@ -94,6 +94,14 @@ def pipeline_stats(profile: dict | None = None) -> dict:
     return stats
 
 
+def _results_lines() -> list[str]:
+    from core.funnel import compute, funnel_lines   # imported late: funnel uses this module's intent lists
+    try:
+        return funnel_lines(compute())
+    except Exception:  # noqa: BLE001 - the report must still render if the funnel can't
+        return ["  (not available)"]
+
+
 def render_report(stats: dict, product_name: str = "", profile: dict | None = None) -> str:
     step_line = ", ".join(f"#{k}: {v}" for k, v in sorted(stats["emails_by_step"].items())) or "none yet"
     lines = [
@@ -104,6 +112,9 @@ def render_report(stats: dict, product_name: str = "", profile: dict | None = No
         f"  Contacted                 {stats['contacted']}",
         f"  Replied (real people)     {stats['replied']}   ({stats['reply_rate']}%)",
         f"  Interested / questions    {stats['positive']}   ({stats['positive_rate']}%)",
+        "",
+        "RESULTS (built on replies, never on opens)",
+        *_results_lines(),
         "",
         "RIGHT NOW",
         f"  Waiting for first email   {stats['waiting_first_email']}",
