@@ -4,7 +4,7 @@ import os
 import sqlite3
 from datetime import datetime, timezone
 
-from core import followups
+from core import deliverability, followups
 from core.config import load_env_file
 from core.db import get_connection, log_event
 from core.report import pipeline_stats, render_report
@@ -39,6 +39,13 @@ def send_daily_digest(profile: dict, force: bool = False) -> dict:
     updates = digest_lines(profile)  # "Update available: vX.Y.Z" / "Updated to vX.Y.Z"
     if updates:
         text += "\n\nUPDATES\n" + "\n".join("  " + line for line in updates)
+    health = deliverability.load()
+    if health.get("status") in ("problem", "warning"):
+        lines = [f"  {c['label']}: {c['detail']}" for c in health.get("checks", []) if c.get("status") in ("problem", "warning")]
+        _limit, note = deliverability.capped_limit(10**6, health)
+        text += "\n\nDELIVERABILITY (" + health.get("domain", "") + ")\n" + "\n".join(lines)
+        if note:
+            text += "\n  " + note
     try:
         due = followups.digest_lines()
     except sqlite3.Error:      # a database from before Follow-ups existed: the digest goes out without it
