@@ -91,8 +91,10 @@ def _number(value, default: float) -> float:
     return number if number >= 0 else default
 
 
-def _jobs(raw: Mapping | None) -> dict[str, str]:
-    raw = raw if isinstance(raw, Mapping) else {}
+def _jobs(ai: Mapping) -> dict[str, str]:
+    """Job settings: flat keys in [ai] (what setup writes) or an [ai.jobs] table (hand-written)."""
+    nested = ai.get("jobs")
+    raw = {**ai, **(nested if isinstance(nested, Mapping) else {})}
     jobs = {}
     for name in JOB_NAMES:
         value = str(raw.get(name, JOB_DEFAULTS[name])).strip().lower()
@@ -107,7 +109,7 @@ def _legacy(ai: Mapping, environ: Mapping[str, str]) -> AIConfig:
         return AIConfig()
     preset = PRESETS["anthropic"]
     return AIConfig(mode="hosted", provider="anthropic", adapter=preset.adapter, base_url=preset.base_url,
-                    model=str(ai.get("model") or ""), api_key=key, auth=preset.auth, jobs=_jobs(ai.get("jobs")))
+                    model=str(ai.get("model") or ""), api_key=key, auth=preset.auth, jobs=_jobs(ai))
 
 
 def load_ai_config(profile: Mapping, environ: Mapping[str, str] | None = None) -> AIConfig:
@@ -129,7 +131,7 @@ def load_ai_config(profile: Mapping, environ: Mapping[str, str] | None = None) -
     return AIConfig(mode=mode, provider=provider, adapter=preset.adapter, base_url=base_url,
                     model=str(ai.get("model") or "").strip(), api_key=key, auth=preset.auth,
                     timeout=_number(ai.get("timeout_seconds"), DEFAULT_TIMEOUT) or DEFAULT_TIMEOUT,
-                    monthly_budget_usd=_number(ai.get("monthly_budget_usd"), 0.0), jobs=_jobs(ai.get("jobs")))
+                    monthly_budget_usd=_number(ai.get("monthly_budget_usd"), 0.0), jobs=_jobs(ai))
 
 
 def is_private_host(url: str) -> bool:

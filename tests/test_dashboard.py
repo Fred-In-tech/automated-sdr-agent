@@ -731,7 +731,7 @@ class TestSettingsPage(DashboardServerCase):
         status, data = self.get_json("/api/settings")
         self.assertEqual(status, 200)
         self.assertTrue(data["configured"])
-        self.assertEqual(len(data["sections"]), 8)
+        self.assertEqual(len(data["sections"]), 9)
         self.assertNotIn("pbkdf2", json.dumps(data))
 
     def test_saving_a_section_changes_the_profile(self):

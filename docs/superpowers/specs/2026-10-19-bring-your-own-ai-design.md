@@ -119,9 +119,11 @@ New table `ai_drafts(id, lead_id, kind, body, status, created_at, decided_at, co
 
 - Settings page: new **AI** section (mode, provider, base URL, model, key, budget, the four job
   switches) and a **Test connection** button calling `POST /api/ai/test`.
-- Setup wizard: one optional question after the email step — "Use AI? Local / Hosted / Not now"
-  (default Not now); detects a running Ollama (`localhost:11434`) or LM Studio (`localhost:1234`)
-  and offers it. Answers-file keys `ai.*` documented in AGENTS.md and README.
+- Setup: a section `ai` (`sdr setup --section ai`, Settings > AI, answers-file keys `ai.*`), default
+  "No AI for now"; detects a running Ollama (`localhost:11434`) or LM Studio (`localhost:1234`)
+  and offers it. Decided during build: the first-run wizard does not ask about AI (keeps first
+  setup at its prompt budget; owners add AI afterwards). Job switches use flat `[ai]` keys
+  (`openers = "review"`), and an `[ai.jobs]` table is also accepted.
 - `sdr ai test` runs the same check as the button; `sdr doctor` reports AI status, mode, provider,
   model reachability (online only) and the data-leaves-machine line.
 - Test connection: URL vs mode check -> list models (offer as picker) -> one tiny classification

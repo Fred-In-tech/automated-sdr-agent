@@ -38,22 +38,26 @@ SECTION_FIELDS = {
                  "schedule.reply_check_minutes", "audience.leads_per_run", "schedule.install"),
     "security": ("security.dashboard_password_env",),
     "updates": ("updates.mode",),
+    "ai": ("ai.mode", "ai.provider", "ai.model", "ai.base_url", "ai.api_key_env", "ai.facts", "ai.openers",
+           "ai.reply_intent", "ai.answer_questions", "ai.lead_fit", "ai.monthly_budget_usd"),
 }
 # Secret fields -> (the .env name that tells us one is saved, the label a person understands).
 SECRETS = {
     "email.password_env": ("SMTP_PASS", "Mailbox password or app password"),
     "audience.brave_api_key_env": ("BRAVE_API_KEY", "Brave Search API key (only for Brave Search)"),
     "security.dashboard_password_env": ("DASHBOARD_PASSWORD_HASH", "Dashboard password (at least 8 characters)"),
+    "ai.api_key_env": ("AI_API_KEY", "AI API key (hosted AI only)"),
 }
 SECRET_HELP = {
     "email.password_env": "Gmail and Google Workspace need an App Password: "
                           "https://myaccount.google.com/apppasswords. It stays on this computer.",
     "audience.brave_api_key_env": "Free key from https://brave.com/search/api/. It stays on this computer.",
     "security.dashboard_password_env": "Only a scrambled version (hash) is saved.",
+    "ai.api_key_env": "Saved on this computer only. Not needed for AI running on your computer.",
 }
 # Settings that are often more than one line (a sign-off with the business name under it, a
 # postal address). They get a multi-line box: a one-line box silently joins the lines.
-MULTILINE_FIELDS = ("email.sign_off", "business.postal_address")
+MULTILINE_FIELDS = ("email.sign_off", "business.postal_address", "ai.facts")
 ONLY_FOR_OTHER = ("email.smtp_host", "email.smtp_port", "email.imap_host", "email.imap_port")
 SECRET_ENV_PREFIX = "SDR_FORM_SECRET_"   # names inside the one-off environment handed to the setup code
 MAX_MESSAGE_LINES = 12

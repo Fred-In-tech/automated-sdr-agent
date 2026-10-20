@@ -217,6 +217,8 @@ def collect(profile_path: str | None = None, env: Mapping[str, str] | None = Non
     checks += check_schedule(deps)
     checks += check_dashboard(env)
     checks += check_updates(profile, deps)
+    from core.cli_ai import ai_doctor_checks
+    checks += ai_doctor_checks(profile, env, online=online and not offline)
     return checks
 
 

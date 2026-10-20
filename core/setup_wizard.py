@@ -32,6 +32,7 @@ from core.setup_profile import (DEFAULT_DAILY_LIMIT, DEFAULT_LEADS_PER_RUN, DEFA
 from core.setup_questions import (SEARCH_CHOICES, SECTION_HELP, SECTION_LABELS, SECTIONS, STEP_TITLES,
                                   UPDATE_CHOICES, known_answer_keys, normalize_section, questions_json)
 from core.setup_email import step_email
+from core.setup_ai import step_ai
 from core.setup_steps import (Deps, SetupContext, schedule_sentence, step_audience, step_business, step_replies,
                               step_schedule, step_security, step_style, step_updates)
 from core.setup_toml import (read_env_file, toml_list, toml_multiline, toml_str, update_env_file,
@@ -55,7 +56,7 @@ SETTINGS_PAGE = "#settings"
 SECTION_STEPS = {
     "brand": (step_business,), "audience": (step_audience,), "style": (step_style,), "email": (step_email,),
     "replies": (step_replies,), "schedule": (step_schedule,), "security": (step_security,),
-    "updates": (step_updates,),
+    "updates": (step_updates,), "ai": (step_ai,),
 }
 LOGIN_LABELS = {
     "works": "checked: sending and inbox work",
