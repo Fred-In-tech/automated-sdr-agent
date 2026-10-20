@@ -147,6 +147,24 @@ class TestTestEmail(TempInstall):
         self.assertIn("Hi Alex,", text)
         self.assertIn("Sent!", out.getvalue())
 
+    def test_reads_how_the_sample_arrived(self):
+        ui, out = plain_ui()
+        verdict = {"spf": "pass", "dkim": "pass", "dmarc": "pass", "seen_by": "mx.google.com", "folder": "INBOX", "spam": False}
+        with mock.patch.dict(os.environ, {"SMTP_USER": "jamie@acme.example"}), \
+                mock.patch("core.sample_proof.fetch_auth_verdict", return_value=verdict) as fetch, \
+                mock.patch("core.deliverability.save_sample") as save:
+            self.assertEqual(cli.cmd_test_email(ui, engine=FakeEngine(), check_arrival=True), 0)
+        fetch.assert_called_once()
+        save.assert_called_once_with(verdict)
+        self.assertIn("all passed", out.getvalue())
+
+    def test_no_arrival_check_for_someone_elses_address(self):
+        ui, _out = plain_ui()
+        with mock.patch.dict(os.environ, {"SMTP_USER": "jamie@acme.example"}), \
+                mock.patch("core.sample_proof.fetch_auth_verdict") as fetch:
+            cli.cmd_test_email(ui, to="friend@x.example", engine=FakeEngine(), check_arrival=True)
+        fetch.assert_not_called()
+
     def test_reply_and_step_options(self):
         ui, _out = plain_ui()
         engine = FakeEngine()

@@ -73,4 +73,4 @@ def send_sample(profile: dict, to: str, step: int = 1, reply: str | None = None,
     if getattr(engine, "from_email", "") and (profile.get("outreach") or {}).get("list_unsubscribe_header"):
         headers["List-Unsubscribe"] = f"<mailto:{engine.from_email}?subject=unsubscribe>"
     sent = engine.send_real_email(to, sample["subject"], sample["html"], sample["text"], headers)
-    return {**sample, "sent": bool(sent), "to": to}
+    return {**sample, "sent": bool(sent), "to": to, "message_id": headers["Message-ID"]}
