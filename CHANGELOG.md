@@ -9,6 +9,23 @@ forward to one of those tags, and it shows you the notes below before it does.
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-10-20
+
+### Added
+
+- **Why people said no.** Replies that weren't interested are sorted into reasons: already use
+  something, not now, price or budget, don't need it, not a fit, wrong person, asked to be
+  removed. A new **Why people said no** card on the Overview and a section in `sdr report` show the
+  counts with a real example, so you know whether to change your timing, targeting or offer.
+  It works on the replies you already have.
+- **First-line A/B test.** List opening sentences in `[outreach] opener_variants` and each lead
+  gets one for good; leads with an AI-written line count as "ai". New setups start with two lines,
+  so the test runs by itself. Add the list to an existing profile to start (see
+  `config/profile.example.toml`).
+- **What gets replies.** A new card on the Overview puts the subject-line, first-line and signature
+  A/B tests side by side, with each version's reply rate. `sdr report` shows the first-line test
+  too.
+
 ## [1.6.0] - 2026-10-20
 
 ### Added

@@ -108,6 +108,50 @@
       Number(f.won_value).toLocaleString() }) : null]));
   }
 
+  // Why replies didn't turn into interest: the counts point at what to change (timing, targeting,
+  // offer or wording), with one real reply as an example.
+  function reasonsCard(reasons) {
+    if (!reasons || !reasons.length) return null;
+    const total = reasons.reduce((sum, r) => sum + r.count, 0);
+    return el('div', { class: 'section-card' }, [
+      el('div', { class: 'section-title', text: 'Why people said no' }),
+      el('p', { class: 'set-help', text: 'From ' + total + (total === 1 ? ' reply' : ' replies') +
+        ' that weren\'t interested (the latest reply per lead).' }),
+    ].concat(reasons.map(r => el('div', { class: 'fn-row' }, [
+      el('div', { class: 'fn-label', text: r.label, title: r.example ? '"' + r.example + '"' : null }),
+      el('div', { class: 'fn-track' }, [bar(Math.max(2, Math.round(100 * r.count / total)))]),
+      el('div', { class: 'fn-count', text: String(r.count) }),
+    ]))));
+  }
+
+  function testRows(title, rows, texts, describe) {
+    if (!rows || !rows.length) return [];
+    return [el('div', { class: 'ab-title', text: title })].concat(rows.map(v => {
+      const index = 'ABCDEFGH'.indexOf(v.variant);
+      const text = String(describe(v, index >= 0 ? texts[index] : '') || '').replace(/\{\{\s*(\w+)\s*\}\}/g, '[$1]');
+      return el('div', { class: 'fn-row', title: text || null }, [
+        el('div', { class: 'fn-label', text: v.variant + (text ? ': ' + (text.length > 48 ? text.slice(0, 47) + '…' : text) : '') }),
+        el('div', { class: 'fn-track' }, [bar(Math.max(2, Math.round(v.reply_rate || 0)))]),
+        el('div', { class: 'fn-count', text: v.replied + '/' + v.contacted + ' · ' + (v.reply_rate || 0) + '%' }),
+      ]);
+    }));
+  }
+
+  // A/B tests side by side: reply rate per subject line, first line and signature.
+  function testsCard(t) {
+    if (!t) return null;
+    const rows = [].concat(
+      testRows('Subject line', t.subject, t.subject_texts || [], (_v, text) => text),
+      testRows('First line', t.opener, t.opener_texts || [], (v, text) => v.variant === 'ai' ? 'written by your AI' : text),
+      testRows('Signature', t.signature, [], () => ''));
+    if (!rows.length) return null;
+    return el('div', { class: 'section-card' }, [
+      el('div', { class: 'section-title', text: 'What gets replies (A/B tests)' }),
+      el('p', { class: 'set-help', text: 'Reply rate per version. Small numbers swing a lot: wait for about 50 ' +
+        'emails per version before you pick a winner.' }),
+    ].concat(rows));
+  }
+
   async function checkAgain(button, note) {
     button.disabled = true;
     note.textContent = 'Checking your domain...';
@@ -133,6 +177,8 @@
     root.textContent = '';
     root.appendChild(el('div', { class: 'grid-2' }, [deliverabilityCard(data.deliverability || {}, checkAgain),
                                                      funnelCard(data.funnel)]));
+    const learn = [reasonsCard(data.reasons), testsCard(data.tests)].filter(Boolean);
+    if (learn.length) root.appendChild(el('div', { class: 'grid-2' }, learn));
   }
 
   document.addEventListener('DOMContentLoaded', loadInsights);

@@ -103,6 +103,13 @@ subject = "question about {{company}}"
 
 # Used as {{opener}} when AI personalisation is off (see [ai]).
 default_opener = "I came across {{company}} while looking at {{category}}s in {{location}}."
+# First-line A/B test: each lead gets one of these as {{opener}} (instead of default_opener);
+# `sdr report` shows which gets more real replies. Leads with an AI-written line are counted as "ai".
+# Remove the list (or leave one line) to stop testing.
+opener_variants = [
+  "I came across {{company}} while looking at {{category}}s in {{location}}.",
+  "I was looking at {{category}}s in {{location}}, and {{company}} stood out.",
+]
 
 body = """Hi {{first_name}},
 

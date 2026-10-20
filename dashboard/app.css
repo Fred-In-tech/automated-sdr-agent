@@ -316,6 +316,7 @@ tr:hover td { background: var(--brand-soft); }
 .import-note { margin-top: 0.9rem; color: var(--muted); font-size: 0.85rem; }
 .modal-overlay.open { display: flex; }
 .dl-details summary { cursor: pointer; padding: 0.3rem 0; color: var(--brand); font-weight: 600; }
+.ab-title { font-weight: 700; color: var(--ink); font-size: 0.86rem; margin-top: 0.6rem; }
 .ai-models { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.4rem; }
 .ai-model { padding: 0.2rem 0.55rem; font-size: 0.78rem; border-radius: 999px; border: 1px solid var(--border);
             background: var(--card); color: var(--text); cursor: pointer; }

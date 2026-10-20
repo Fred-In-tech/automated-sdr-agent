@@ -85,3 +85,23 @@ class TestTodayAndStaticFiles(InsightsCase):
             self.assertIn(kind, headers["Content-Type"])
         for path in ("/server.py", "/../core/db.py", "/app.css/../server.py", "/index.html.bak"):
             self.assertEqual(self.get(path)[0], 404, path)
+
+
+class TestLearningCards(InsightsCase):
+    def test_insights_include_reply_reasons_and_ab_tests(self):
+        conn = db.get_connection()
+        cur = conn.execute("INSERT INTO leads (name, company, email, status, opener_variant, created_at) VALUES "
+                           "('Bloom', 'Bloom', 'a@bloom.test', 'not_interested', 'A', '2026-10-20')")
+        lead_id = cur.lastrowid
+        conn.execute("INSERT INTO email_logs (lead_id, lead_email, subject, body, status, sent_at) VALUES "
+                     "(?, 'a@bloom.test', 's', 'b', 'sent', '2026-10-20')", (lead_id,))
+        conn.execute("INSERT INTO inbound_messages (message_id, lead_id, from_email, excerpt, intent, received_at) "
+                     "VALUES ('<x>', ?, 'a@bloom.test', 'We already use Dubsado, thanks.', 'not_interested', "
+                     "'2026-10-20')", (lead_id,))
+        conn.commit()
+        conn.close()
+        status, data = self.get_json("/api/insights")
+        self.assertEqual(status, 200)
+        self.assertEqual(data["reasons"][0]["reason"], "has_tool")
+        self.assertEqual(data["tests"]["opener"][0]["variant"], "A")
+        self.assertEqual(data["tests"]["opener"][0]["replied"], 1)

@@ -8,6 +8,7 @@ Create it with `python3 cli.py setup`, or copy config/profile.example.toml.
 import os
 import re
 import tomllib
+import zlib
 from typing import Mapping
 
 from core.product import CLI_NAME
@@ -163,6 +164,27 @@ def render(template: str, values: dict) -> str:
     return template
 
 
+OPENER_LABELS = "ABCDEFGH"
+
+
+def opener_choice(profile: Mapping, lead: Mapping | None) -> tuple[str, str]:
+    """(label, first-line template) for this lead's {{opener}}.
+
+    "ai" when the lead has its own AI-written line. With [outreach] opener_variants, each lead
+    gets one of them for good (stable per address, hashed separately from the subject test so the
+    two tests don't move in lockstep), labelled "A", "B"...; otherwise ("", default_opener)."""
+    lead = lead or {}
+    outreach = profile.get("outreach", {}) or {}
+    if lead.get("opener"):
+        return "ai", lead["opener"]
+    variants = [v for v in outreach.get("opener_variants") or [] if isinstance(v, str) and v.strip()]
+    if not variants:
+        return "", outreach.get("default_opener", "")
+    seed = ("opener:" + str(lead.get("email") or "")).lower().encode()
+    index = zlib.crc32(seed) % min(len(variants), len(OPENER_LABELS))
+    return OPENER_LABELS[index], variants[index]
+
+
 def template_values(profile: dict, lead: dict | None = None) -> dict:
     """All placeholders available to email and reply templates."""
     sender = profile["sender"]
@@ -185,7 +207,7 @@ def template_values(profile: dict, lead: dict | None = None) -> dict:
             "category": lead.get("category") or values["category"],
             "location": lead.get("location") or values["location"],
         })
-    # {{opener}}: the lead's AI-written first line if we have one, else the profile's default
-    default_opener = profile.get("outreach", {}).get("default_opener", "")
-    values["opener"] = (lead or {}).get("opener") or render(default_opener, values)
+    # {{opener}}: the lead's AI-written first line if we have one, else the A/B test's or the default
+    label, opener = opener_choice(profile, lead)
+    values["opener"] = opener if label == "ai" else render(opener, values)
     return values

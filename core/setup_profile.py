@@ -401,6 +401,7 @@ track_links = true
 utm_campaign = "sdr"
 subject = {toml_str("question about {{company}}")}
 default_opener = {toml_str("I came across {{company}} while looking at {{category}}s in {{location}}.")}
+opener_variants = [{toml_str("I came across {{company}} while looking at {{category}}s in {{location}}.")}, {toml_str("I was looking at {{category}}s in {{location}}, and {{company}} stood out.")}]   # first-line A/B test, see `sdr report`
 body = {toml_multiline(copy["body"])}
 {_button_line(copy["button"])}unsubscribe_line = {toml_str(UNSUBSCRIBE_LINE)}
 {follow_ups}
