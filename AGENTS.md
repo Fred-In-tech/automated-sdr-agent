@@ -123,6 +123,8 @@ right.
   (e.g. `"SDR_BRAVE_API_KEY"`). Setup saves the key to `.env` as `BRAVE_API_KEY`. Needed only
   with `search_engine = "brave"` when no key is saved yet.
 - How many new leads to look for each run: `leads_per_run` (optional, default 4)
+- Fit score that goes out without review: `auto_send_score` (optional, default 70). Qualified leads
+  scoring lower wait for the user's OK on the dashboard (or `sdr review`); 0 = never ask.
 
 **Email style** `[style]`
 - `kind`: `"sales"` is a plain, personal email that lands in the Primary tab (recommended for cold
@@ -340,6 +342,7 @@ including any hand-edited email wording. The old profile is first copied to
 | `sdr ai test` | Checks your AI (Settings > AI): lists its models and asks one tiny question. Shows what data leaves the computer. Sends no email |
 | `sdr drafts` | Shows AI drafts waiting for your review (first lines, answers to questions) and lets you approve, edit or skip them |
 | `sdr followups` | Today's follow-ups: every lead who replied with interest, with its next step and due date (overdue first). Mark them done on the dashboard's Follow-ups tab. Sends nothing |
+| `sdr review` | Borderline leads (qualified, but under your auto-send score) waiting for your OK before their first email: approve or reject them. Sends nothing |
 | `sdr digest` | Emails the user their pipeline digest now (`--force` sends it even if it already went out today) |
 | `sdr leadgen` | Finds new leads only (`--count N`). Searches the web |
 | `sdr email` | Emails leads that are due only (`--limit N`). **Emails real prospects** |

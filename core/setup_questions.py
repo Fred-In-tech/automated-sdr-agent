@@ -180,6 +180,9 @@ QUESTIONS = (
     Question("schedule.reply_check_minutes", "Check for replies every how many minutes?", "int",
              "0 = only at the full runs.", default=DEFAULT_REPLY_CHECK),
     Question("audience.leads_per_run", "New leads to find each run", "int", "", default=DEFAULT_LEADS_PER_RUN),
+    Question("audience.auto_send_score", "Fit score that goes out without your review", "int",
+             "Leads scoring at least this (0-100) are emailed automatically; lower-scoring qualified leads wait "
+             "for your OK on the dashboard. 0 = never ask.", default=70),
     Question("schedule.install", "Turn the schedule on now?", "bool",
              "It then runs by itself and emails real prospects. Off unless you say so: turn it on later "
              "with `sdr schedule on` (and `sdr schedule off` stops it). A schedule that is already "

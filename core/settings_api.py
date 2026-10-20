@@ -27,7 +27,7 @@ SECTION_FIELDS = {
     "brand": ("business.website", "business.name", "business.tagline", "business.offer", "business.signup_url",
               "business.postal_address", "business.allow_no_address"),
     "audience": ("audience.ideal_client", "business.pitch", "audience.job_titles", "audience.cities",
-                 "audience.search_engine", "audience.brave_api_key_env"),
+                 "audience.search_engine", "audience.brave_api_key_env", "audience.auto_send_score"),
     "style": ("style.kind", "style.signature_logo_test", "style.brand_color", "style.logo_url",
               "replies.branded_welcome"),
     "email": ("email.address", "email.provider", "email.password_env", "email.sign_off", "email.from_name",

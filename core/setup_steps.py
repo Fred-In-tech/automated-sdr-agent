@@ -436,6 +436,11 @@ def step_audience(ctx: SetupContext) -> None:
     if ui.interactive and titles and cities:
         _show_searches(ui, titles, cities)
     _ask_search_engine(ctx)
+    if ctx.section == "audience" or ui.has_answer("audience.auto_send_score"):
+        review_q = q("audience.auto_send_score")
+        ctx.a["audience.auto_send_score"] = int(ui.text(
+            "audience.auto_send_score", review_q.label, default=str(ctx.value("audience.auto_send_score", 70)),
+            validate=_between(0, 100, zero_ok=True), hint=review_q.help))
 
 
 # ── 3. Email style ───────────────────────────────────────────────────────────

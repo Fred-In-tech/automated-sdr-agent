@@ -154,6 +154,11 @@ def icp_words(profile: dict) -> list:
     return words
 
 
+# Qualified leads scoring at least this go out automatically; between min_fit_score and this they
+# wait for the owner's review (core/lead_review.py). [targeting] auto_send_score changes it.
+DEFAULT_AUTO_SEND_SCORE = 70
+
+
 def score_lead(profile: dict, email: str, website_domain: str, page_text: str, company: str) -> dict:
     """Fit score 0-100 with reasons. `qualified` is False for hard disqualifiers or low scores."""
     targeting = profile["targeting"]
@@ -206,9 +211,14 @@ def score_lead(profile: dict, email: str, website_domain: str, page_text: str, c
         reasons.append(f"unrecognised inbox ({local}@)")
 
     qualified = score >= min_score
+    auto_send = int(targeting.get("auto_send_score", DEFAULT_AUTO_SEND_SCORE))
+    needs_review = qualified and score < auto_send
     if not qualified:
         reasons.append(f"below min_fit_score {min_score}")
-    return {"qualified": qualified, "score": score, "reasons": reasons, "first_name": first_name}
+    elif needs_review:
+        reasons.append(f"borderline (under {auto_send}): waits for your review")
+    return {"qualified": qualified, "score": score, "reasons": reasons, "first_name": first_name,
+            "needs_review": needs_review}
 
 
 def pick_best_contact(profile: dict, emails: list, website_domain: str, page_text: str, company: str):
