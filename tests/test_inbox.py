@@ -290,9 +290,21 @@ class TestOfflineReplyCheck(InboxTestCase):
         for exc in (socket.gaierror(8, "nodename nor servname provided, or not known"), TimeoutError("timed out"),
                     OSError(errno.ENETUNREACH, "Network is unreachable")):
             with self.subTest(exc=exc):
+                conn = db.get_connection()
+                conn.execute("DELETE FROM bot_logs")
+                conn.commit()
+                conn.close()
                 result = self.run_failing(exc)
                 self.assertEqual(result["status"], "skipped")
                 self.assertIn("No internet", result["message"])
+
+    def test_three_in_a_row_becomes_an_error(self):
+        """A typo in the mail server name also fails the name lookup: don't hide it forever."""
+        import socket
+        exc = socket.gaierror(8, "nodename nor servname provided, or not known")
+        statuses = [self.run_failing(exc)["status"] for _ in range(4)]
+        self.assertEqual(statuses, ["skipped", "skipped", "error", "error"])
+        self.assertIn("mail server", self.run_failing(exc)["error"])
 
     def test_real_problems_stay_errors(self):
         import ssl

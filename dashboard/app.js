@@ -126,7 +126,7 @@ async function loadProfile() {
     applyBrand(p);
     setText('brand-name', p.product_name);
     const link = document.getElementById('brand-link');
-    link.href = p.website;
+    if (/^https?:\/\//.test(p.website || '')) link.href = p.website;   // never a javascript: link
     link.textContent = p.website.replace(/^https?:\/\//, '').replace(/\/$/, '') + ' ↗';
     setText('brand-tagline', (p.design && p.design.tagline ? p.design.tagline + ' · ' : '') + 'SDR Control Center');
     document.title = p.product_name + ' · SDR Control Center';
