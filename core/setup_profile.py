@@ -62,6 +62,8 @@ SECTION_KEYS: dict[str, dict[str, list[str]]] = {
     },
     "security": {},
     "updates": {"updates": ["mode"]},
+    "ai": {"ai": ["mode", "provider", "model", "base_url", "facts", "openers", "reply_intent", "answer_questions",
+                  "lead_fit", "monthly_budget_usd"]},
 }
 
 
@@ -311,6 +313,18 @@ def managed_values(a: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
             "reply_check_minutes": int(_get(a, "schedule.reply_check_minutes", DEFAULT_REPLY_CHECK)),
         },
         "updates": {"mode": _get(a, "updates.mode", DEFAULT_UPDATE_MODE)},
+        "ai": {
+            "mode": _get(a, "ai.mode", "off"),
+            "provider": _get(a, "ai.provider", "ollama"),
+            "model": _get(a, "ai.model", ""),
+            "base_url": _get(a, "ai.base_url", ""),
+            "facts": _get(a, "ai.facts", ""),
+            "openers": _get(a, "ai.openers", "auto"),
+            "reply_intent": _get(a, "ai.reply_intent", "auto"),
+            "answer_questions": _get(a, "ai.answer_questions", "review"),
+            "lead_fit": _get(a, "ai.lead_fit", "auto"),
+            "monthly_budget_usd": int(_get(a, "ai.monthly_budget_usd", 0) or 0),
+        },
     }
 
 
@@ -420,8 +434,16 @@ interested = {toml_value({"text": "Start your {{offer}}", "url": "{{product_url}
 daily_digest = true
 
 [ai]
-enabled = false
-model = "claude-opus-5"
+{_kv("mode", v["ai"]["mode"], "off | local_only (Ollama, LM Studio...: nothing leaves this computer) | hosted")}
+{_kv("provider", v["ai"]["provider"], "ollama, lmstudio, llamacpp, vllm, jan, openai, anthropic, gemini, groq, openrouter, mistral, azure, custom")}
+{_kv("model", v["ai"]["model"], "e.g. llama3.2, gpt-4.1-mini, claude-sonnet-4-5")}
+{_kv("base_url", v["ai"]["base_url"], "blank = the provider's usual address")}
+{_kv("facts", v["ai"]["facts"], "prices, FAQ: the only facts AI answers may use")}
+{_kv("openers", v["ai"]["openers"], "personal first lines: review | auto | off")}
+{_kv("reply_intent", v["ai"]["reply_intent"], "sort replies: auto | off")}
+{_kv("answer_questions", v["ai"]["answer_questions"], "answers to questions: review | auto | off")}
+{_kv("lead_fit", v["ai"]["lead_fit"], "why each lead fits: auto | off")}
+{_kv("monthly_budget_usd", v["ai"]["monthly_budget_usd"], "hosted AI only; 0 = no limit")}
 
 [schedule]
 {_kv("run_times", v["schedule"]["run_times"], "full runs, this computer's time")}
@@ -527,13 +549,27 @@ def state_from_profile(profile: Mapping[str, Any] | None, env: Mapping[str, str]
         "schedule.daily_send_limit": outreach.get("daily_send_limit"),
         "schedule.emails_per_run": outreach.get("emails_per_run"),
         "updates.mode": _table(profile, "updates").get("mode"),
+        **_ai_state(_table(profile, "ai"), env),
     }
     return {key: value for key, value in state.items() if value not in (None, "", []) and _fits(key, value)}
 
 
 _LIST_KEYS = {"audience.job_titles", "audience.cities", "schedule.run_times", "schedule.send_days"}
 _INT_KEYS = {"audience.leads_per_run", "schedule.reply_check_minutes", "schedule.daily_send_limit",
-             "schedule.emails_per_run"}
+             "schedule.emails_per_run", "ai.monthly_budget_usd"}
+
+
+def _ai_state(ai: Mapping[str, Any], env: Mapping[str, str]) -> dict:
+    """[ai] as setup answers. Profiles from before v1.3 ([ai] enabled + model, Claude only)
+    become "hosted / anthropic" when their key is saved, otherwise "off"."""
+    if "mode" not in ai and "enabled" in ai:
+        legacy_on = bool(ai.get("enabled")) and bool(env.get("ANTHROPIC_API_KEY"))
+        return {"ai.mode": "hosted" if legacy_on else "off", "ai.provider": "anthropic", "ai.model": ai.get("model")}
+    state = {f"ai.{key}": ai.get(key) for key in ("mode", "provider", "model", "base_url", "facts", "openers",
+                                                   "reply_intent", "answer_questions", "lead_fit")}
+    budget = ai.get("monthly_budget_usd")
+    state["ai.monthly_budget_usd"] = int(budget) if isinstance(budget, (int, float)) and budget else None
+    return state
 _BOOL_KEYS = {"business.allow_no_address", "style.signature_logo_test", "replies.enabled", "replies.branded_welcome"}
 
 

@@ -11,6 +11,7 @@
     sdr update             install the latest release (--check, --scheduled, --force)
     sdr doctor             check everything (--online, --offline)
     sdr open               where your files are (for your editor or AI agent)
+    sdr ai test            check your AI connection;  sdr drafts  review AI drafts
     sdr version
 
 Older commands still work: leadgen, email, inbox, social, pipeline, run-all, export, requalify,
@@ -29,7 +30,7 @@ from core.config import ProfileError, compliance_warnings, load_profile
 from core.product import CLI_NAME, DISPLAY_NAME, ROOT_DIR, TAGLINE, version
 from core.tui import UI, valid_email
 
-SECTION_NAMES = ("brand", "audience", "style", "email", "replies", "schedule", "security", "updates")
+SECTION_NAMES = ("brand", "audience", "style", "email", "replies", "schedule", "security", "updates", "ai")
 OPEN_TARGETS = {
     "folder": ("the install folder", ""),
     "profile": ("your settings (config/profile.toml)", os.path.join("config", "profile.toml")),
@@ -342,6 +343,9 @@ def build_parser() -> argparse.ArgumentParser:
     open_parser = sub.add_parser("open", help="Where your files are; open them")
     open_parser.add_argument("what", nargs="?", choices=list(OPEN_TARGETS), default="folder")
     sub.add_parser("version", help="Show the version")
+    ai = sub.add_parser("ai", help="Your AI: test the connection")
+    ai.add_argument("action", nargs="?", choices=["test"], default="test")
+    sub.add_parser("drafts", help="Review AI drafts waiting for your approval")
 
     requalify = sub.add_parser("requalify", help="Re-score leads saved before fit-scoring existed")
     requalify.add_argument("--dry-run", action="store_true", help="Show the result without changing anything")
@@ -478,6 +482,15 @@ def dispatch(args: argparse.Namespace, ui: UI) -> int:
         else:
             ui.info("Sending isn't paused, so there's nothing to resume.")
         return 0
+    if command == "ai":
+        from core.cli_ai import cmd_ai_test
+        from core.config import load_env_file
+        load_env_file()
+        return cmd_ai_test(ui, load_profile())
+    if command == "drafts":
+        from core.cli_ai import cmd_drafts
+        init_db()
+        return cmd_drafts(ui, load_profile())
     if command == "import":
         from core.cli_import import cmd_import
         if args.template:

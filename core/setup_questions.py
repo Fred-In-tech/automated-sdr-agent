@@ -12,6 +12,7 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
+from core.ai.providers import PRESETS as AI_PRESETS
 from core.email_checks import PROVIDERS
 from core.setup_profile import (ALL_DAYS, DEFAULT_DAILY_LIMIT, DEFAULT_LEADS_PER_RUN, DEFAULT_REPLY_CHECK,
                                 DEFAULT_RUN_TIMES, DEFAULT_SEND_DAYS)
@@ -21,16 +22,17 @@ STEP_TITLES = ["Your business", "Your ideal clients", "Email style", "Your email
                "Schedule", "Security & updates"]
 SECTIONS = {  # section -> step number (1-based)
     "brand": 1, "audience": 2, "style": 3, "email": 4, "replies": 5, "schedule": 6, "security": 7, "updates": 7,
+    "ai": 7,
 }
 SECTION_ALIASES = {
     "business": "brand", "website": "brand", "clients": "audience", "targeting": "audience",
     "design": "style", "account": "email", "login": "email", "mailbox": "email", "reply": "replies",
-    "password": "security", "dashboard": "security", "update": "updates",
+    "password": "security", "dashboard": "security", "update": "updates", "llm": "ai", "model": "ai",
 }
 SECTION_LABELS = {
     "brand": "Your business", "audience": "Your ideal clients", "style": "Email style",
     "email": "Your email account", "replies": "Replies", "schedule": "Schedule",
-    "security": "Dashboard password", "updates": "Updates",
+    "security": "Dashboard password", "updates": "Updates", "ai": "AI",
 }
 SECTION_HELP = {
     "brand": "website, business name, logo and colours, offer, mailing address",
@@ -41,6 +43,7 @@ SECTION_HELP = {
     "schedule": "run times, send days, emails per day, reply checks, leads per run",
     "security": "dashboard password",
     "updates": "update checks: notify, auto or off",
+    "ai": "bring your own AI (on your computer or hosted) and what it may do",
 }
 
 SEARCH_CHOICES = (
@@ -60,6 +63,18 @@ UPDATE_CHOICES = (
     ("auto", "Install updates automatically", "Weekly, with a backup; rolls back if anything fails"),
     ("off", "Don't check for updates", ""),
 )
+AI_MODE_CHOICES = (
+    ("off", "No AI for now (recommended to start)", "Built-in rules write and sort everything"),
+    ("local_only", "AI on this computer", "Ollama, LM Studio and similar: free, and nothing leaves your computer"),
+    ("hosted", "Hosted AI with my own key", "OpenAI, Claude, Gemini, Groq...: lead names, websites and replies are sent to them"),
+)
+AI_PROVIDER_CHOICES = tuple((p.name, p.label, "runs on your computer" if p.local else "") for p in AI_PRESETS.values())
+AI_DRAFT_CHOICES = (
+    ("review", "Show me first", "AI drafts wait on the dashboard until you approve them"),
+    ("auto", "Use it automatically", "Checked by the built-in rules, then used"),
+    ("off", "Don't use AI for this", ""),
+)
+AI_AUTO_CHOICES = (("auto", "On", ""), ("off", "Off (built-in rules)", ""))
 DAY_PRESETS = (
     ("weekdays", "Weekdays (Mon-Fri)", ""),
     ("everyday", "Every day", ""),
@@ -174,6 +189,23 @@ QUESTIONS = (
              "Optional, recommended: the NAME of an environment variable holding a password "
              "(8+ characters) for your local dashboard. Only a hash is stored."),
     Question("updates.mode", "How should updates work?", "choice", "", default="notify", choices=UPDATE_CHOICES),
+    # AI (optional; `sdr setup --section ai`, or Settings > AI)
+    Question("ai.mode", "Use AI?", "choice", "", default="off", choices=AI_MODE_CHOICES),
+    Question("ai.provider", "Which AI?", "choice", "", default="ollama", choices=AI_PROVIDER_CHOICES),
+    Question("ai.model", "Model", "text", "The model name, e.g. llama3.2, gpt-4.1-mini or claude-sonnet-4-5."),
+    Question("ai.base_url", "Address (base URL)", "text",
+             "Leave empty to use the provider's usual address. Needed for Azure and Custom."),
+    Question("ai.api_key_env", "AI API key", "env_var",
+             "Hosted AI only: the NAME of an environment variable holding the key (stored in .env as AI_API_KEY)."),
+    Question("ai.facts", "Facts the AI may use in answers", "text",
+             "Prices, what's included, FAQ answers. The AI answers questions only from these and your business info."),
+    Question("ai.openers", "Personal first line for each lead", "choice", "", default="auto", choices=AI_DRAFT_CHOICES),
+    Question("ai.reply_intent", "Read and sort replies", "choice", "", default="auto", choices=AI_AUTO_CHOICES),
+    Question("ai.answer_questions", "Draft answers to leads' questions", "choice", "", default="review",
+             choices=AI_DRAFT_CHOICES),
+    Question("ai.lead_fit", "Explain why each lead fits", "choice", "", default="auto", choices=AI_AUTO_CHOICES),
+    Question("ai.monthly_budget_usd", "Monthly AI budget (USD)", "int",
+             "Hosted AI only: AI pauses for the month once this estimate is reached. 0 = no limit.", default=0),
     # After saving (answers files only; the interactive wizard asks)
     Question("finish.send_sample", "Send a sample email to yourself now?", "bool", "", default=False),
     Question("finish.open_dashboard", "Open your dashboard now?", "bool", "", default=False),
@@ -191,7 +223,7 @@ EXTRA_ANSWER_KEYS = frozenset({
     "audience.keep_brave_key", "audience.accept_bing", "audience.cities_ok",
     "email.keep_password", "email.login_failed", "email.code", "email.more_options",
     "schedule.use_suggested", "schedule.days",
-    "security.keep_password", "security.protect",
+    "security.keep_password", "security.protect", "ai.keep_key", "ai.use_found",
 })
 
 

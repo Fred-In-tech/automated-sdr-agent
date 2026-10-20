@@ -174,7 +174,7 @@ if you say yes, and it emails nobody).
 To change something later, open the dashboard (`sdr dashboard`) and go to **Settings**.
 In the terminal, running `sdr setup` again lets you change one part, go through everything again,
 or leave it. To jump straight to one part, run `sdr setup --section <name>` with `brand`, `audience`, `style`,
-`email`, `replies`, `schedule`, `security` or `updates`. Only that part changes; your hand-edited
+`email`, `replies`, `schedule`, `security`, `updates` or `ai`. Only that part changes; your hand-edited
 email wording is kept.
 
 ## Let an AI agent set it up
@@ -232,6 +232,8 @@ or off, check for updates, run a health check.
 | `sdr export` | Exports your leads to `data/leads_export.csv` |
 | `sdr import FILE` | Imports your own leads from a CSV file with an `email` column, e.g. a file called leads.csv. Sends nothing. Options: `--dry-run` (only check), `--no-verify` (skip the mail-server check), `--template` (print an example file) |
 | `sdr resume` | Starts sending again after a bounce-rate pause. The bounce limit stays the same |
+| `sdr ai test` | Checks your AI (Settings > AI): lists its models and asks one tiny question. Shows what data leaves the computer. Sends no email |
+| `sdr drafts` | Shows AI drafts waiting for your review (first lines, answers to questions) and lets you approve, edit or skip them |
 | `sdr requalify` | Re-scores leads saved before fit scoring existed (`--dry-run` to preview) |
 
 These print their result as JSON. `python3 cli.py <command>` is the same as `sdr <command>`.

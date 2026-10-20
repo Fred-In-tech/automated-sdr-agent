@@ -107,6 +107,11 @@ def _find_leads(profile: dict) -> dict:
     return LeadGenPipeline(profile).run_pipeline()
 
 
+def _probe_ai() -> dict:
+    from core.setup_ai import probe_local_ai   # imported late: only the AI step needs it
+    return probe_local_ai()
+
+
 @dataclass
 class Deps:
     detect_brand: Callable[[str], dict] = _detect_brand
@@ -119,6 +124,7 @@ class Deps:
     send_sample: Callable[[dict, str], bool] = _send_sample
     start_dashboard: Callable[..., Any] = _start_dashboard
     find_leads: Callable[[dict], dict] = _find_leads
+    probe_ai: Callable[[], dict] = _probe_ai
 
 
 @dataclass

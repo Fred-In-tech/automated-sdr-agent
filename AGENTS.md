@@ -172,6 +172,28 @@ right.
 - `mode`: `"notify"` (default; says "Update available"), `"auto"` (installs tagged releases
   with backup, tests and rollback) or `"off"`.
 
+**AI** `[ai]` (all optional; AI is off by default and nothing needs it). The first-run wizard
+doesn't ask about AI: add it afterwards with `sdr setup --section ai`, the dashboard's
+Settings > AI, or these keys. Every AI job falls back to the built-in rules when the AI is off,
+slow or wrong, so AI never stops outreach.
+- `mode`: `"off"` (default), `"local_only"` (AI on this computer or local network, e.g. Ollama or
+  LM Studio: nothing leaves the machine) or `"hosted"` (the user's own provider and key). Tell the
+  user plainly that hosted AI receives lead names, companies, website snippets and reply text.
+- `provider`: `ollama`, `lmstudio`, `llamacpp`, `vllm`, `jan`, `openai`, `anthropic`, `gemini`,
+  `groq`, `openrouter`, `mistral`, `azure` or `custom` (any OpenAI-compatible server).
+- `model`: the model name, e.g. `llama3.2` (run `ollama list` to see installed ones).
+- `base_url` (optional): blank = the provider's usual address; required for `azure` and `custom`.
+  Local-only mode refuses addresses on the internet, and internet addresses must use https.
+- `api_key_env`: hosted AI only, the *name* of an environment variable holding the key (setup
+  saves it to `.env` as `AI_API_KEY`). Never put the key itself in the answers file.
+- `facts` (optional): prices, what's included, FAQ answers. AI answers to questions may only use
+  these and the business details.
+- Jobs: `openers` (personal first line: `review`, `auto` or `off`), `reply_intent` (sort replies:
+  `auto` or `off`), `answer_questions` (draft answers: `review`, `auto` or `off`; default
+  `review`) and `lead_fit` (why a lead fits: `auto` or `off`). `review` means drafts wait on the
+  dashboard's **Needs you** card (or `sdr drafts`) until the user approves them.
+- `monthly_budget_usd` (optional, hosted only): AI pauses for the month at this estimated spend. 0 = no limit.
+
 **After saving** `[finish]` (all optional and false by default in answers mode)
 - `send_sample`: email the first message of the sequence to the user's own address. Only with
   the user's OK.
@@ -280,7 +302,7 @@ including any hand-edited email wording. The old profile is first copied to
 - The user can change every setting themselves on the dashboard's **Settings** page
   (`sdr dashboard`). It runs the same code as the sections below.
 - Re-run one part of the wizard with `sdr setup --section <name>`. The names are `brand`,
-  `audience`, `style`, `email`, `replies`, `schedule`, `security` and `updates`. It rewrites only
+  `audience`, `style`, `email`, `replies`, `schedule`, `security`, `updates` and `ai`. It rewrites only
   the settings that part owns; hand-edited email copy, comments and other sections are kept.
 - Without a terminal, combine it with a small answers file that holds only that table, named
   `<section>-answers.toml` so it stays gitignored:
@@ -315,6 +337,8 @@ including any hand-edited email wording. The old profile is first copied to
 | `sdr export` | Exports leads to `data/leads_export.csv` |
 | `sdr import FILE` | Imports your own leads from a CSV file with an `email` column, e.g. a file called leads.csv. Sends nothing. Options: `--dry-run` (only check), `--no-verify` (skip the mail-server check), `--template` (print an example file) |
 | `sdr resume` | Starts sending again after a bounce-rate pause. The bounce limit stays the same |
+| `sdr ai test` | Checks your AI (Settings > AI): lists its models and asks one tiny question. Shows what data leaves the computer. Sends no email |
+| `sdr drafts` | Shows AI drafts waiting for your review (first lines, answers to questions) and lets you approve, edit or skip them |
 | `sdr digest` | Emails the user their pipeline digest now (`--force` sends it even if it already went out today) |
 | `sdr leadgen` | Finds new leads only (`--count N`). Searches the web |
 | `sdr email` | Emails leads that are due only (`--limit N`). **Emails real prospects** |
