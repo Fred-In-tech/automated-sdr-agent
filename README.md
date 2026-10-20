@@ -11,7 +11,7 @@ human-sounding sequence, reads every reply, and hands you the people who are int
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 ![macOS · Linux · Windows](https://img.shields.io/badge/runs%20on-macOS%20%C2%B7%20Linux%20%C2%B7%20Windows-lightgrey.svg)
 
-![The Automated SDR dashboard: qualified leads, contacted, reply rate, hot leads to answer personally, one-click triggers and the live activity feed](docs/dashboard.png)
+![The Automated SDR dashboard: today's sends and next run, leads waiting for your OK, hot leads to answer personally, stats, deliverability and the results funnel](docs/dashboard.png)
 
 <sub>The dashboard with demo data. Yours shows your own business, logo, colours and leads.</sub>
 
