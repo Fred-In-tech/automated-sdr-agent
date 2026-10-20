@@ -161,6 +161,15 @@ class TestErrors(unittest.TestCase):
             chat(c, "s", "u", opener=FakeOpener())
         self.assertIn("key", str(err.exception))
 
+    def test_server_error_message_is_shown(self):
+        with self.assertRaises(AIError) as err:
+            chat(cfg("lmstudio", mode="local_only"), "s", "u",
+                 opener=FakeOpener({"error": "Unexpected endpoint or method. (POST /chat/completions)"}))
+        self.assertIn("Unexpected endpoint", str(err.exception))
+        with self.assertRaises(AIError) as err:
+            chat(cfg("openai"), "s", "u", opener=FakeOpener({"error": {"message": "model not loaded"}}))
+        self.assertIn("model not loaded", str(err.exception))
+
     def test_unreadable_answer(self):
         with self.assertRaises(AIError):
             chat(cfg("openai"), "s", "u", opener=FakeOpener({"weird": True}))

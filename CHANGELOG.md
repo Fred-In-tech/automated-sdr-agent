@@ -9,6 +9,18 @@ forward to one of those tags, and it shows you the notes below before it does.
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-10-19
+
+### Fixed
+
+- **Test connection failed with "LM Studio sent back an answer in an unexpected format"** when the
+  AI address was typed the way LM Studio shows it (`http://127.0.0.1:1234`). That API lives under
+  `/v1`, which is now added automatically to any address without a path, so the address you copy
+  from LM Studio, llama.cpp, vLLM or Jan just works. Settings you already saved start working
+  after `sdr update`, with nothing to change.
+- When an AI server answers with an error, its own message is now shown (for example "Unexpected
+  endpoint" or "model not loaded") instead of "unexpected format".
+
 ## [1.3.0] - 2026-10-19
 
 ### Added
