@@ -9,6 +9,43 @@ forward to one of those tags, and it shows you the notes below before it does.
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-10-20
+
+### Added
+
+- **A "Today" strip at the top of the dashboard.** How many emails went out today against your
+  daily limit, when the next run is, how many follow-ups are due and how many hot leads you have.
+  The header now shows whether your schedule is really on (it used to always say "Engine Active").
+- **Search and filter your leads.** Type a name, company, email or city, or pick a status.
+- **Pick your AI model from a list.** In Settings > AI, Test connection now shows the models your
+  AI server has; click one to use it, then Save. No more typing long model names.
+- **Code scanning.** GitHub's CodeQL checks the Python and JavaScript on every pull request.
+
+### Changed
+
+- **A calmer Overview.** Today, then what needs you (leads to approve, AI drafts, hot leads), then
+  your numbers, deliverability and the results funnel. Recent activity folds away until you open it,
+  and deliverability details fold away unless something needs fixing.
+- **Plain labels, no emoji.** The tabs are Overview, Leads, Emails, Follow-ups and Settings. The
+  buttons say what they do: Run everything now, Find new leads, Send due emails. "Run All Bots" is
+  gone (it did the same as the full run). Buttons that email real people now ask first.
+- **The Emails tab no longer shows opens and clicks.** Sales emails don't track them and the
+  results are built on replies.
+- **A reply check without internet is "skipped", not an error.** Wi-Fi off or a laptop waking up
+  no longer fills the log with errors. Three failed checks in a row are still an error, so a
+  wrong mail server setting can't hide.
+
+### Security
+
+- **The dashboard runs no inline code.** Its styles and scripts moved into files it serves itself,
+  and the content security policy now only allows those (`script-src 'self'`).
+
+### Internal
+
+- `dashboard/index.html` (956 lines) split into `app.css`, `app.js` and `tables.js`;
+  `bots/leadgen_pipeline.py`, `core/tui.py` and `dashboard/server.py` split under the 800-line
+  limit (`bots/site_reader.py`, `core/tui_output.py`, `dashboard/data_routes.py`).
+
 ## [1.5.0] - 2026-10-20
 
 ### Added

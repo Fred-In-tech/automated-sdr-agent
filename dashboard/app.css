@@ -285,6 +285,8 @@ tr:hover td { background: var(--brand-soft); }
 .today-meter { height: 0.4rem; background: var(--bg); border-radius: 999px; overflow: hidden; margin-top: 0.5rem; }
 .today-meter > div { height: 100%; background: var(--brand); border-radius: 999px; transition: width 0.4s ease-out; }
 .today-warn { color: #B45309; }
+.today-sub a { color: var(--brand); font-weight: 600; text-decoration: none; }
+.today-sub a:hover { text-decoration: underline; }
 .audience { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; margin: -0.6rem 0 1.4rem; }
 .audience-label { color: var(--muted); font-size: 0.8rem; font-weight: 600; margin-right: 0.2rem; }
 .muted { color: var(--muted); }
