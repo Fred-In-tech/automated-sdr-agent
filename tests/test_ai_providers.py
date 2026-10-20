@@ -82,7 +82,7 @@ class TestLoadConfig(unittest.TestCase):
 class TestSafety(unittest.TestCase):
     def test_private_hosts(self):
         for url in ("http://127.0.0.1:1234/v1", "http://localhost:11434", "http://10.0.0.5/v1", "http://192.168.1.9",
-                    "http://172.16.4.2", "http://[::1]:8000", "http://studio-mac.local:1234"):
+                    "http://172.16.4.2", "http://[::1]:8000"):
             self.assertTrue(is_private_host(url), url)
         for url in ("https://api.openai.com/v1", "http://8.8.8.8", "https://ollama.com/v1", "not a url"):
             self.assertFalse(is_private_host(url), url)

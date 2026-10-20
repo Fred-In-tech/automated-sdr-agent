@@ -30,6 +30,17 @@ MAX_ERROR_TEXT = 300
 Opener = Callable[..., object]
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Never follow a redirect: it could carry the API key to another server, or take a
+    "local only" request off this computer."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise urllib.error.HTTPError(newurl, code, "Redirects are not followed", headers, fp)
+
+
+default_opener = urllib.request.build_opener(_NoRedirect())
+
+
 class AIError(Exception):
     """A plain-English reason the AI call failed (already free of secrets)."""
 
@@ -104,6 +115,9 @@ def _explain_http(cfg: AIConfig, code: int, detail: str) -> str:
     if "failed to load model" in lowered or "insufficient system resources" in lowered or "out of memory" in lowered:
         return (f"{cfg.label} couldn't load '{cfg.model}' (not enough memory). Pick a smaller model, "
                 "or close other models in the app first.")
+    if code in (301, 302, 303, 307, 308):
+        return (f"{cfg.label} tried to redirect to another address. Redirects aren't followed, to keep your key "
+                "and data where you sent them. Check the address in Settings > AI.")
     if code in (401, 403):
         return f"{cfg.label} rejected the key ({code}). Check the AI key in Settings > AI."
     if code == 404 and ("model" in detail.lower() or cfg.adapter == "ollama"):
@@ -116,7 +130,8 @@ def _explain_http(cfg: AIConfig, code: int, detail: str) -> str:
     return f"{cfg.label} returned an error ({code}): {detail[:MAX_ERROR_TEXT]}"
 
 
-def _request(cfg: AIConfig, method: str, url: str, body: dict | None, opener: Opener) -> dict:
+def _request(cfg: AIConfig, method: str, url: str, body: dict | None, opener: Opener | None) -> dict:
+    opener = opener or default_opener.open
     data = json.dumps(body).encode() if body is not None else None
     request = urllib.request.Request(url, data=data, headers=_headers(cfg), method=method)
     secrets = (cfg.api_key,)
@@ -236,13 +251,13 @@ _ADAPTERS = {"openai": _chat_openai, "anthropic": _chat_anthropic, "ollama": _ch
 
 
 def chat(cfg: AIConfig, system: str, user: str, *, schema: dict | None = None, max_tokens: int = 400,
-         opener: Opener = urllib.request.urlopen) -> Reply:
+         opener: Opener | None = None) -> Reply:
     """One question to the owner's AI. Raises AIError with a fix-it message on any failure."""
     _check(cfg)
     return _ADAPTERS[cfg.adapter](cfg, system, user, schema, max_tokens, opener)
 
 
-def list_models(cfg: AIConfig, *, opener: Opener = urllib.request.urlopen) -> list[str]:
+def list_models(cfg: AIConfig, *, opener: Opener | None = None) -> list[str]:
     """The models this AI offers (installed models for local servers)."""
     problem = url_problem(cfg)
     if problem:

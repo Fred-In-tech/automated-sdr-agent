@@ -20,10 +20,11 @@ import email.utils
 import hashlib
 from email.header import decode_header, make_header
 from datetime import datetime, timedelta, timezone
-from core.db import get_connection, log_event, init_db
+from core.db import SUPPRESSED_STATUSES, get_connection, log_event, init_db
+from core.outreach_rules import is_do_not_contact, load_do_not_contact
 from core.config import load_env_file, load_profile, mail_server, render, template_values
 from core.email_checks import tls_context
-from core.ai import AIRun, answer_question
+from core.ai import AIRun, answer_question, is_valid_answer
 from core.ai import classify_reply as ai_classify_reply
 from core.ai import drafts as ai_drafts
 from core.intent import automated_reason, classify_reply
@@ -172,7 +173,6 @@ class InboxListenerEngine:
         self.alert_email = sdr.get("alert_email") or os.getenv("SDR_ALERT_EMAIL") or self.email_user
         self.lookback_days = int(self.auto_reply.get("lookback_days", 14))
         self.ai = AIRun(self.profile)
-        self._queued_drafts: list[tuple] = []
         self.classify = self._load_classifier()
 
     def _load_classifier(self):
@@ -187,28 +187,32 @@ class InboxListenerEngine:
             return None
         return answer_question(self.ai, self.profile, lead, reply_text)
 
-    def _flush_drafts(self) -> None:
-        """Drafts are queued during a transaction and saved after its commit (separate connection)."""
-        for lead_id, kind, body, context in self._queued_drafts:
-            ai_drafts.add_draft(lead_id, kind, body, context)
-        self._queued_drafts.clear()
-
     def send_approved_answers(self) -> int:
-        """Send the answers the owner approved in the review queue. Returns how many went out."""
+        """Send the answers the owner approved in the review queue. Returns how many went out.
+
+        Runs after the inbox is read, so an unsubscribe or bounce that just arrived counts. One bad
+        draft never stops the others or the inbox check."""
         sent = 0
+        do_not_contact = load_do_not_contact()
         for draft in ai_drafts.approved(kind="answer"):
-            if draft.get("lead_status") in ("unsubscribed", "not_interested", "bounced"):
-                ai_drafts.mark_sent(draft["id"])         # they opted out since: never send
-                continue
-            text, html = build_answer_reply(self.profile, draft, draft["body"])
-            context = draft.get("context") or {}
-            subject = context.get("subject") or "Re: your question"
-            message_id = context.get("message_id")
-            headers = {"In-Reply-To": message_id, "References": message_id} if message_id else {}
-            if self.email_engine.send_real_email(draft["email"], subject, html, text, headers):
-                ai_drafts.mark_sent(draft["id"])
-                log_event("InboxListener", "ApprovedAnswer", "success", f"Sent your approved answer to {draft['email']}")
-                sent += 1
+            try:
+                if (draft.get("lead_status") in SUPPRESSED_STATUSES or is_do_not_contact(draft["email"], do_not_contact)
+                        or not is_valid_answer(draft["body"], self.profile)):
+                    ai_drafts.withdraw(draft["id"])      # opted out since, or the text isn't safe: never send
+                    continue
+                text, html = build_answer_reply(self.profile, draft, draft["body"])
+                context = draft.get("context") or {}
+                subject = context.get("subject") or "Re: your question"
+                message_id = context.get("message_id")
+                headers = {"In-Reply-To": message_id, "References": message_id} if message_id else {}
+                if self.email_engine.send_real_email(draft["email"], subject, html, text, headers):
+                    ai_drafts.mark_sent(draft["id"])
+                    log_event("InboxListener", "ApprovedAnswer", "success", f"Sent your approved answer to {draft['email']}")
+                    sent += 1
+            except Exception as exc:  # noqa: BLE001 - one draft must not stop the rest
+                log_event("InboxListener", "ApprovedAnswer", "error", f"Draft {draft.get('id')}: {exc}")
+        if sent:
+            print(f"✉️  Sent {sent} answer(s) you approved.")
         return sent
 
     # ── helpers ────────────────────────────────────────────────────────────
@@ -327,7 +331,9 @@ class InboxListenerEngine:
         if first_reply and self.auto_reply.get("enabled", True):
             answer = self._ai_answer(person, reply_text) if intent == "question" else None
             if answer and self.ai.job_mode("answer_questions") == "review":
-                self._queued_drafts.append((lead["id"], "answer", answer, {"subject": subject, "message_id": message_id}))
+                # Same transaction as the lead's new status: saved together, or not at all.
+                ai_drafts.add_draft(lead["id"], "answer", answer, {"subject": subject, "message_id": message_id},
+                                    cursor=cursor)
                 action = "drafted an answer for your review (dashboard: Needs you)"
                 self._alert(lead, intent, reply_text, action)
                 return action
@@ -355,9 +361,6 @@ class InboxListenerEngine:
         conn = None
         summary = {"bounces": [], "unsubscribed": [], "hot_leads": [], "replies": [], "ignored_automated": 0}
         try:
-            approved_sent = self.send_approved_answers()
-            if approved_sent:
-                print(f"✉️  Sent {approved_sent} answer(s) you approved.")
             # imaplib's own default context skips certificate and hostname checks, which would hand
             # the mailbox password to anyone on the same network; verify like the login check does.
             mail = imaplib.IMAP4_SSL(self.imap_host, self.imap_port, ssl_context=tls_context(), timeout=30)
@@ -369,6 +372,7 @@ class InboxListenerEngine:
             imap_ids = response[0].split()[-limit:]
             if not imap_ids:
                 mail.logout()
+                self.send_approved_answers()
                 return {"status": "info", "message": "No recent emails.", "replies_sent": 0}
 
             conn = get_connection()
@@ -433,7 +437,6 @@ class InboxListenerEngine:
                     colleague["status"] = lead["status"]
                 self._record(cursor, message_id, lead, from_email, subject, reply_text, intent, action)
                 conn.commit()
-                self._flush_drafts()
                 entry = {"email": from_email, "company": lead.get("company"), "intent": intent, "action": action}
                 summary["hot_leads" if intent in HOT_INTENTS else "replies"].append(entry)
                 if intent in ("unsubscribe", "not_interested"):
@@ -441,6 +444,10 @@ class InboxListenerEngine:
                 print(f"📬 [{intent}] {from_email}: {action}")
 
             mail.logout()
+            if conn is not None:
+                conn.close()
+                conn = None
+            self.send_approved_answers()
             text = (f"Inbox: {len(summary['hot_leads'])} hot leads, {len(summary['replies'])} other replies, "
                     f"{len(summary['unsubscribed'])} opted out, {len(summary['bounces'])} bounces, "
                     f"{summary['ignored_automated']} autoresponders ignored.")

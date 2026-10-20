@@ -15,8 +15,11 @@ from core import db
 
 KINDS = ("opener", "answer")
 ACTIONS = {"approve": "approved", "edit": "edited", "skip": "skipped"}
-READY = ("approved", "edited")
+READY = ("approved", "edited")   # spelled out in the SQL below
 STALE_AFTER = timedelta(hours=2)   # interested leads go cold fast
+# A first line nobody reviews within this long is dropped and the standard one is used, so an
+# unchecked review queue can never hold a lead back forever.
+OPENER_REVIEW_WINDOW = timedelta(days=3)
 
 
 def _now() -> str:
@@ -32,17 +35,57 @@ def _row(row) -> dict:
     return item
 
 
-def add_draft(lead_id: int, kind: str, body: str, context: dict | None = None) -> int:
+def add_draft(lead_id: int, kind: str, body: str, context: dict | None = None, *, cursor=None) -> int:
+    """Queue a draft. Pass the caller's `cursor` to write it inside the caller's transaction
+    (so the draft and the lead's new status are saved together, or not at all)."""
     if kind not in KINDS:
         raise ValueError(f"Unknown draft kind: {kind}")
-    conn = db.get_connection()
+    own = cursor is None
+    conn = db.get_connection() if own else None
+    cur = conn.cursor() if own else cursor
     try:
-        conn.execute("DELETE FROM ai_drafts WHERE lead_id = ? AND kind = ? AND status = 'pending'", (lead_id, kind))
-        cursor = conn.execute(
+        cur.execute("DELETE FROM ai_drafts WHERE lead_id = ? AND kind = ? AND status = 'pending'", (lead_id, kind))
+        cur.execute(
             "INSERT INTO ai_drafts (lead_id, kind, body, status, context, created_at) VALUES (?, ?, ?, 'pending', ?, ?)",
             (lead_id, kind, body, json.dumps(context or {}), _now()))
+        draft_id = int(cur.lastrowid)
+        if own:
+            conn.commit()
+        return draft_id
+    finally:
+        if own:
+            conn.close()
+
+
+def get(draft_id: int) -> dict | None:
+    conn = db.get_connection()
+    try:
+        row = conn.execute("SELECT * FROM ai_drafts WHERE id = ?", (draft_id,)).fetchone()
+    finally:
+        conn.close()
+    return _row(row) if row else None
+
+
+def expire_pending(kind: str, older_than: timedelta) -> int:
+    """Skip pending drafts of this kind older than `older_than`. Returns how many."""
+    cutoff = (datetime.now(timezone.utc) - older_than).isoformat()
+    conn = db.get_connection()
+    try:
+        cursor = conn.execute("UPDATE ai_drafts SET status = 'skipped', decided_at = ? WHERE kind = ? "
+                              "AND status = 'pending' AND created_at < ?", (_now(), kind, cutoff))
         conn.commit()
-        return int(cursor.lastrowid)
+        return cursor.rowcount
+    finally:
+        conn.close()
+
+
+def withdraw(draft_id: int) -> None:
+    """Take back an approved draft that must not be sent (the lead opted out, or the text fails
+    the safety checks at send time)."""
+    conn = db.get_connection()
+    try:
+        conn.execute("UPDATE ai_drafts SET status = 'skipped', decided_at = ? WHERE id = ?", (_now(), draft_id))
+        conn.commit()
     finally:
         conn.close()
 
@@ -102,8 +145,8 @@ def approved_for(lead_id: int, kind: str) -> dict | None:
     """The newest approved or edited draft for this lead that hasn't been sent yet."""
     conn = db.get_connection()
     try:
-        row = conn.execute(f"SELECT * FROM ai_drafts WHERE lead_id = ? AND kind = ? AND status IN {READY} "
-                           "ORDER BY id DESC LIMIT 1", (lead_id, kind)).fetchone()  # nosec B608 - READY is a constant
+        row = conn.execute("SELECT * FROM ai_drafts WHERE lead_id = ? AND kind = ? AND status IN ('approved', 'edited') "
+                           "ORDER BY id DESC LIMIT 1", (lead_id, kind)).fetchone()
     finally:
         conn.close()
     return _row(row) if row else None
@@ -113,9 +156,9 @@ def approved(kind: str) -> list[dict]:
     """Every approved/edited draft of this kind not yet sent, with the lead's details."""
     conn = db.get_connection()
     try:
-        rows = conn.execute(f"SELECT d.*, l.email, l.first_name, l.company, l.status AS lead_status FROM ai_drafts d "
-                            f"JOIN leads l ON l.id = d.lead_id WHERE d.kind = ? AND d.status IN {READY} ORDER BY d.id",
-                            (kind,)).fetchall()  # nosec B608 - READY is a constant
+        rows = conn.execute("SELECT d.*, l.email, l.first_name, l.company, l.status AS lead_status FROM ai_drafts d "
+                            "JOIN leads l ON l.id = d.lead_id WHERE d.kind = ? AND d.status IN ('approved', 'edited') "
+                            "ORDER BY d.id", (kind,)).fetchall()
     finally:
         conn.close()
     return [_row(row) for row in rows]

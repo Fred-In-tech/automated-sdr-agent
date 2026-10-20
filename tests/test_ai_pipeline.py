@@ -99,6 +99,28 @@ class TestFirstEmailWaitsForReview(SequenceTestCase):
         self.assertIsNone(drafts.approved_for(lead_id, "opener"))
 
 
+class TestReviewNeverBlocksSending(SequenceTestCase):
+    def test_waiting_leads_do_not_use_up_the_run(self):
+        waiting = [self.add_lead(f"w{i}@waiting.test", 95) for i in range(3)]
+        for lead_id in waiting:
+            drafts.add_draft(lead_id, "opener", OPENER)
+        other = self.add_lead("b@other.test", 40)
+        self.engine.run_outreach_campaign(limit=1)
+        self.assertEqual([m["to"] for m in self.sent], ["b@other.test"])
+        self.assertEqual(self.lead(other)["status"], "contacted")
+
+    def test_openers_left_unreviewed_for_days_fall_back(self):
+        from datetime import datetime, timedelta, timezone
+        lead_id = self.add_lead("old@waiting.test", 95)
+        old = (datetime.now(timezone.utc) - timedelta(days=4)).isoformat()
+        with mock.patch.object(drafts, "_now", return_value=old):
+            drafts.add_draft(lead_id, "opener", OPENER)
+        self.engine.run_outreach_campaign()
+        self.assertEqual([m["to"] for m in self.sent], ["old@waiting.test"])
+        self.assertNotIn(OPENER, self.sent[0]["text"])          # the standard first line was used
+        self.assertFalse(drafts.has_pending(lead_id, "opener"))
+
+
 class TestAnswers(InboxTestCase):
     QUESTION = make_mail("sarah@bloomfilms.test", "Re: proposals", "How much is it after the trial?", "<q1@x>")
 
@@ -131,6 +153,24 @@ class TestAnswers(InboxTestCase):
     def test_ai_down_falls_back_to_the_template(self):
         self.run_with_ai({"answer_questions": "auto"}, answer=AIError("Ollama isn't running"))
         self.assertEqual(len(self.sent_to("sarah@bloomfilms.test")), 1)
+
+    def test_no_answer_to_someone_who_just_unsubscribed(self):
+        draft = drafts.add_draft(self.lead_id, "answer", ANSWER, {"subject": "Re: proposals", "message_id": "<q1@x>"})
+        drafts.decide(draft, "approve")
+        self.profile["ai"] = {**LOCAL_AI}
+        with mock.patch("core.ai.jobs.chat", fake_chat({})):
+            self.run_inbox([make_mail("sarah@bloomfilms.test", "Re: proposals", "Please unsubscribe me.", "<u1@x>")])
+        self.assertFalse(any(ANSWER in m["text"] for m in self.sent_to("sarah@bloomfilms.test")))
+        self.assertEqual(drafts.approved(kind="answer"), [])
+
+    def test_an_unsafe_approved_answer_is_not_sent(self):
+        draft = drafts.add_draft(self.lead_id, "answer", "x", {"subject": "Re: proposals"})
+        drafts.decide(draft, "edit", "Call 512-555-0100 to pay your invoice.")
+        self.profile["ai"] = {**LOCAL_AI}
+        with mock.patch("core.ai.jobs.chat", fake_chat({})):
+            self.run_inbox([])
+        self.assertEqual(self.sent_to("sarah@bloomfilms.test"), [])
+        self.assertEqual(drafts.approved(kind="answer"), [])
 
     def test_approved_answer_is_sent_on_the_next_check(self):
         draft = drafts.add_draft(self.lead_id, "answer", ANSWER, {"subject": "Re: proposals", "message_id": "<q1@x>"})
