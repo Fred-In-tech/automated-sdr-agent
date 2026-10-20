@@ -818,7 +818,9 @@ class TestDashboardPage(unittest.TestCase):
 
     def test_no_inline_scripts_or_handlers(self):
         """script-src is 'self' only, so inline code would silently not run: keep it all in files."""
-        self.assertEqual(re.findall(r"<script(?![^>]*\bsrc=)[^>]*>", self.page), [])
+        page = self.page.lower()
+        external = re.findall(r'<script[^>]*\bsrc="[^"]+"[^>]*>\s*</script\s*>', page)
+        self.assertEqual(page.count("<script"), len(external))   # every script tag is an empty src= tag
         self.assertEqual(re.findall(r"\son[a-z]+\s*=", self.page), [])
         self.assertNotIn("<style", self.page)
 

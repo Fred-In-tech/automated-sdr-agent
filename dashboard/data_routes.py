@@ -70,7 +70,7 @@ class DataRoutesMixin:
                 try:
                     row["enriched_info"] = json.loads(row["enriched_info"])
                 except ValueError:
-                    pass
+                    row["enriched_info"] = {}   # a damaged value shows as "no details", not a broken page
             try:
                 row["fit_reasons_list"] = json.loads(row.get("fit_reasons") or "[]")
             except ValueError:
