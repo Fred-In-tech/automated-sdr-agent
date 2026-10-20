@@ -10,6 +10,7 @@ import json
 import os
 from datetime import datetime, timezone
 
+from core.ai.drafts import add_draft
 from core.db import ensure_private_dir, get_connection, log_event, open_private
 from core.qualify import FREEMAIL_DOMAINS, root_domain
 
@@ -63,6 +64,7 @@ def save_leads(candidates: list, ideal_client: str) -> list:
     conn = get_connection()
     cursor = conn.cursor()
     saved = []
+    opener_drafts: list[tuple[int, str]] = []
     created_at = datetime.now(timezone.utc).isoformat()
 
     for item in candidates:
@@ -92,22 +94,28 @@ def save_leads(candidates: list, ideal_client: str) -> list:
             "status": item.get("status", "new"),
             "source": item.get("source", "Live Scraper"),
             "opener": item.get("opener"),
+            "ai_fit": item.get("ai_fit"),
         }
         try:
             cursor.execute("""
                 INSERT INTO leads (name, first_name, title, company, email, phone, category, location,
-                                   website, fit_score, fit_reasons, enriched_info, status, opener, created_at)
-                VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                   website, fit_score, fit_reasons, enriched_info, status, opener, ai_fit, created_at)
+                VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (lead["name"], lead["first_name"], lead["title"], lead["company"], email,
                   lead["category"], lead["location"], lead["website"], lead["fit_score"],
                   json.dumps(lead["fit_reasons"]), json.dumps(enriched_data), lead["status"],
-                  lead["opener"], created_at))
+                  lead["opener"], lead["ai_fit"], created_at))
             saved.append({**lead, "id": cursor.lastrowid})
+            if item.get("opener_draft"):
+                opener_drafts.append((cursor.lastrowid, item["opener_draft"]))
         except Exception as e:
             log_event("LeadGenPipeline", "SaveError", "warning", f"Failed to save {email}: {e}")
 
     conn.commit()
     conn.close()
+    # Added only after the commit: the review queue opens its own connection.
+    for lead_id, text in opener_drafts:
+        add_draft(lead_id, "opener", text)
     return saved
 
 

@@ -23,6 +23,9 @@ from datetime import datetime, timedelta, timezone
 from core.db import get_connection, log_event, init_db
 from core.config import load_env_file, load_profile, mail_server, render, template_values
 from core.email_checks import tls_context
+from core.ai import AIRun, answer_question
+from core.ai import classify_reply as ai_classify_reply
+from core.ai import drafts as ai_drafts
 from core.intent import automated_reason, classify_reply
 from core.notifications import NotificationManager
 from core.qualify import FREEMAIL_DOMAINS
@@ -124,6 +127,14 @@ def build_reply(profile: dict, intent: str, lead: dict | None, reply_text: str =
     return text, html_body
 
 
+def build_answer_reply(profile: dict, lead: dict | None, answer: str) -> tuple[str, str]:
+    """(plain text, html) for an AI-drafted answer, framed like the owner's other replies.
+    The answer was validated (no placeholders, links or invented prices) before it gets here."""
+    values = template_values(profile, lead)
+    text = render("Hi {{first_name}},\n\n", values) + answer.strip() + render("\n\n{{sign_off}}", values)
+    return text, render_personal_html(text, None, [])
+
+
 def pick_auto_reply(profile: dict, intent: str, lead: dict | None, reply_text: str = "") -> str | None:
     """Plain-text version of the approved reply (see build_reply)."""
     reply = build_reply(profile, intent, lead, reply_text)
@@ -160,18 +171,45 @@ class InboxListenerEngine:
         sdr = self.profile.get("sdr", {})
         self.alert_email = sdr.get("alert_email") or os.getenv("SDR_ALERT_EMAIL") or self.email_user
         self.lookback_days = int(self.auto_reply.get("lookback_days", 14))
+        self.ai = AIRun(self.profile)
+        self._queued_drafts: list[tuple] = []
         self.classify = self._load_classifier()
 
     def _load_classifier(self):
-        """Claude-powered triage when [ai] is enabled and a key is set, else the offline rules."""
+        """The owner's AI reads replies when [ai] is set up; otherwise (or if it fails) the offline rules."""
         opt_out_words = self.auto_reply.get("opt_out_words", ["unsubscribe"])
-        try:
-            from core.ai import ai_enabled, classify_reply_with_ai
-            if ai_enabled(self.profile):
-                return lambda text: classify_reply_with_ai(self.profile, text, opt_out_words)
-        except ImportError:
-            pass
+        if self.ai.enabled("reply_intent"):
+            return lambda text: ai_classify_reply(self.ai, text, opt_out_words)
         return lambda text: classify_reply(text, opt_out_words)
+
+    def _ai_answer(self, lead: dict, reply_text: str) -> str | None:
+        if not self.ai.enabled("answer_questions"):
+            return None
+        return answer_question(self.ai, self.profile, lead, reply_text)
+
+    def _flush_drafts(self) -> None:
+        """Drafts are queued during a transaction and saved after its commit (separate connection)."""
+        for lead_id, kind, body, context in self._queued_drafts:
+            ai_drafts.add_draft(lead_id, kind, body, context)
+        self._queued_drafts.clear()
+
+    def send_approved_answers(self) -> int:
+        """Send the answers the owner approved in the review queue. Returns how many went out."""
+        sent = 0
+        for draft in ai_drafts.approved(kind="answer"):
+            if draft.get("lead_status") in ("unsubscribed", "not_interested", "bounced"):
+                ai_drafts.mark_sent(draft["id"])         # they opted out since: never send
+                continue
+            text, html = build_answer_reply(self.profile, draft, draft["body"])
+            context = draft.get("context") or {}
+            subject = context.get("subject") or "Re: your question"
+            message_id = context.get("message_id")
+            headers = {"In-Reply-To": message_id, "References": message_id} if message_id else {}
+            if self.email_engine.send_real_email(draft["email"], subject, html, text, headers):
+                ai_drafts.mark_sent(draft["id"])
+                log_event("InboxListener", "ApprovedAnswer", "success", f"Sent your approved answer to {draft['email']}")
+                sent += 1
+        return sent
 
     # ── helpers ────────────────────────────────────────────────────────────
     def is_bounce(self, from_email: str, subject: str) -> bool:
@@ -285,11 +323,18 @@ class InboxListenerEngine:
 
         action = "no auto-reply — your turn"
         reply = None
+        subject = their_subject if their_subject.lower().startswith("re:") else f"Re: {their_subject}"
         if first_reply and self.auto_reply.get("enabled", True):
-            reply = build_reply(self.profile, intent, person, reply_text)
+            answer = self._ai_answer(person, reply_text) if intent == "question" else None
+            if answer and self.ai.job_mode("answer_questions") == "review":
+                self._queued_drafts.append((lead["id"], "answer", answer, {"subject": subject, "message_id": message_id}))
+                action = "drafted an answer for your review (dashboard: Needs you)"
+                self._alert(lead, intent, reply_text, action)
+                return action
+            reply = build_answer_reply(self.profile, person, answer) if answer else None
+            reply = reply or build_reply(self.profile, intent, person, reply_text)
         if reply:
             reply_body, reply_html = reply
-            subject = their_subject if their_subject.lower().startswith("re:") else f"Re: {their_subject}"
             headers = {"In-Reply-To": message_id, "References": message_id} if message_id else {}
             if self.email_engine.send_real_email(lead["email"], subject, reply_html, reply_body, headers):
                 action = f"sent your approved '{intent}' reply"
@@ -310,6 +355,9 @@ class InboxListenerEngine:
         conn = None
         summary = {"bounces": [], "unsubscribed": [], "hot_leads": [], "replies": [], "ignored_automated": 0}
         try:
+            approved_sent = self.send_approved_answers()
+            if approved_sent:
+                print(f"✉️  Sent {approved_sent} answer(s) you approved.")
             # imaplib's own default context skips certificate and hostname checks, which would hand
             # the mailbox password to anyone on the same network; verify like the login check does.
             mail = imaplib.IMAP4_SSL(self.imap_host, self.imap_port, ssl_context=tls_context(), timeout=30)
@@ -385,6 +433,7 @@ class InboxListenerEngine:
                     colleague["status"] = lead["status"]
                 self._record(cursor, message_id, lead, from_email, subject, reply_text, intent, action)
                 conn.commit()
+                self._flush_drafts()
                 entry = {"email": from_email, "company": lead.get("company"), "intent": intent, "action": action}
                 summary["hot_leads" if intent in HOT_INTENTS else "replies"].append(entry)
                 if intent in ("unsubscribe", "not_interested"):

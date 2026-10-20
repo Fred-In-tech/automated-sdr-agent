@@ -8,6 +8,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import make_msgid
 from datetime import datetime, timedelta, timezone
+from core.ai import drafts as ai_drafts
 from core.db import get_connection, log_event, init_db
 from core.notifications import NotificationManager
 from core.email_checks import tls_context
@@ -339,6 +340,16 @@ class EmailMarketingEngine:
             step = (lead.get("sequence_step") or 0) + (0 if kind == NURTURE else 1)
             if kind != NURTURE and step > self.total_steps:
                 continue
+            opener_draft = None
+            if step == 1 and kind != NURTURE:
+                # An AI first line waiting for the owner's review holds only this lead's first email.
+                if ai_drafts.has_pending(lead["id"], "opener"):
+                    print(f"📝 [Waiting for your review] {lead['email']}: approve its first line in the dashboard.")
+                    continue
+                opener_draft = ai_drafts.approved_for(lead["id"], "opener")
+                if opener_draft:
+                    lead["opener"] = opener_draft["body"]
+                    cursor.execute("UPDATE leads SET opener = ? WHERE id = ?", (lead["opener"], lead["id"]))
             if step == 1:
                 is_valid, reason = verify_lead_email(lead["email"])
                 if not is_valid:
@@ -356,6 +367,8 @@ class EmailMarketingEngine:
             if self.send_real_email(lead["email"], subject, html_body, text_body, headers):
                 self._record_send(cursor, lead, step, subject, text_body, message_id, kind)
                 conn.commit()
+                if opener_draft:
+                    ai_drafts.mark_sent(opener_draft["id"])
                 sent_emails.append({"lead_id": lead["id"], "company": lead["company"], "email": lead["email"],
                                     "step": step if kind != NURTURE else "nurture", "subject": subject})
                 if idx < len(target_leads) - 1:
