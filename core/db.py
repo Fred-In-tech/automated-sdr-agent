@@ -200,6 +200,25 @@ def init_db():
         )
     """)
 
+    # 8. Follow-ups: one deal per replying lead, with one dated next step (core/followups.py)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS deals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            lead_id INTEGER NOT NULL,
+            stage TEXT NOT NULL DEFAULT 'replied',
+            value REAL,
+            next_step TEXT,
+            due TEXT,
+            notes TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            stage_changed_at TEXT NOT NULL,
+            closed_at TEXT,
+            FOREIGN KEY (lead_id) REFERENCES leads(id)
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS deals_lead ON deals (lead_id)")
+
     _add_missing_columns(cursor, "leads", LEAD_COLUMNS)
     _add_missing_columns(cursor, "email_logs", EMAIL_LOG_COLUMNS)
 

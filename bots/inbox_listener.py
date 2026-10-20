@@ -20,6 +20,7 @@ import email.utils
 import hashlib
 from email.header import decode_header, make_header
 from datetime import datetime, timedelta, timezone
+from core import followups
 from core.db import SUPPRESSED_STATUSES, get_connection, log_event, init_db
 from core.outreach_rules import is_do_not_contact, load_do_not_contact
 from core.config import load_env_file, load_profile, mail_server, render, template_values
@@ -321,6 +322,8 @@ class InboxListenerEngine:
             check_in = (datetime.now(timezone.utc) + timedelta(days=float(nurture.get("days", 60)))).isoformat()
         cursor.execute("UPDATE leads SET status = ?, next_touch_at = ? WHERE id = ?", (new_status, check_in, lead["id"]))
         lead["status"] = new_status  # later messages in this run are not a "first reply"
+        if intent in HOT_INTENTS:
+            followups.ensure_deal(lead["id"], cursor=cursor)   # same transaction as the reply (Follow-ups tab)
 
         if intent in ("unsubscribe", "not_interested"):
             return "stopped all emails to them"
