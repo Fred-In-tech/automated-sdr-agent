@@ -287,6 +287,9 @@ class EmailMarketingEngine:
             return
         following = next_touch_at(self.profile, step, now)
         label, _template = subject_variant(self.profile, lead["email"])
+        # Only the first email shows {{opener}}: a lead first emailed before the test started (or
+        # before the list changed) must not be credited to a line it never saw.
+        first_line_label = (opener_choice(self.profile, lead)[0] or None) if step == 1 else None
         cursor.execute("""
             UPDATE leads SET status = ?, sequence_step = ?, last_contacted_at = ?, next_touch_at = ?,
                 thread_subject = COALESCE(thread_subject, ?), thread_message_id = COALESCE(thread_message_id, ?),
@@ -295,7 +298,7 @@ class EmailMarketingEngine:
             WHERE id = ?
         """, ("contacted" if following else "no_response", step, now.isoformat(),
               following.isoformat() if following else None, subject, message_id, label or None,
-              self._signature_variant(lead), opener_choice(self.profile, lead)[0] or None, lead["id"]))
+              self._signature_variant(lead), first_line_label, lead["id"]))
 
     def run_outreach_campaign(self, campaign_id: int = None, limit: int | None = None, region: str = None) -> dict:
         """Send the next email of the sequence to each lead that's due, within the daily cap."""

@@ -5,10 +5,11 @@ from __future__ import annotations
 
 import json
 import os
+import sqlite3
 import time
 
 from core import deliverability, lead_review, today
-from core.config import ProfileError, load_env_file, load_profile
+from core.config import ProfileError, load_env_file, load_profile, opener_variant_list
 from core.db import log_event
 from core.funnel import compute
 from core.report import pipeline_stats
@@ -48,7 +49,10 @@ class InsightsRoutesMixin:
             profile = load_profile()
         except ProfileError:
             profile = None
-        stats = pipeline_stats(profile)
+        try:
+            stats = pipeline_stats(profile)
+        except sqlite3.Error:   # a busy database must not take the deliverability and funnel cards down too
+            stats = {}
         outreach = (profile or {}).get("outreach", {}) or {}
         self._send_json({"deliverability": _with_cap(deliverability.load()), "funnel": compute(),
                          "review_count": lead_review.count(), "reasons": stats.get("reply_reasons", []),
@@ -56,7 +60,7 @@ class InsightsRoutesMixin:
                                    "opener": stats.get("opener_ab_test", []),
                                    "signature": stats.get("signature_ab_test", []),
                                    "subject_texts": outreach.get("subject_variants") or [],
-                                   "opener_texts": outreach.get("opener_variants") or []}})
+                                   "opener_texts": opener_variant_list(profile or {})}})
 
     def _api_today(self) -> None:
         try:

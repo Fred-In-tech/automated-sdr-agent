@@ -167,6 +167,16 @@ def render(template: str, values: dict) -> str:
 OPENER_LABELS = "ABCDEFGH"
 
 
+def opener_variant_list(profile: Mapping) -> list[str]:
+    """[outreach] opener_variants, cleaned: only a list of non-blank strings counts (a hand-typed
+    single string must not become one-letter first lines), at most one per label. Label "A" is
+    the first entry of this list everywhere it's shown."""
+    raw = (profile.get("outreach", {}) or {}).get("opener_variants")
+    if not isinstance(raw, list):
+        return []
+    return [v for v in raw if isinstance(v, str) and v.strip()][:len(OPENER_LABELS)]
+
+
 def opener_choice(profile: Mapping, lead: Mapping | None) -> tuple[str, str]:
     """(label, first-line template) for this lead's {{opener}}.
 
@@ -177,11 +187,11 @@ def opener_choice(profile: Mapping, lead: Mapping | None) -> tuple[str, str]:
     outreach = profile.get("outreach", {}) or {}
     if lead.get("opener"):
         return "ai", lead["opener"]
-    variants = [v for v in outreach.get("opener_variants") or [] if isinstance(v, str) and v.strip()]
+    variants = opener_variant_list(profile)
     if not variants:
         return "", outreach.get("default_opener", "")
     seed = ("opener:" + str(lead.get("email") or "")).lower().encode()
-    index = zlib.crc32(seed) % min(len(variants), len(OPENER_LABELS))
+    index = zlib.crc32(seed) % len(variants)
     return OPENER_LABELS[index], variants[index]
 
 

@@ -73,6 +73,7 @@ def cmd_preview() -> int:
     """Show every email of the sequence and the searches the profile produces. Sends nothing."""
     from bots.email_marketing import build_outreach_email, sequence_length
     from bots.leadgen_pipeline import build_search_queries
+    from core.config import OPENER_LABELS, opener_variant_list, render, template_values
 
     profile = load_profile()
     targeting = profile["targeting"]
@@ -91,6 +92,13 @@ def cmd_preview() -> int:
               "(to a made-up lead) " + "-" * 20)
         print(f"Subject: {subject}\n\n{text}")
         sample_lead.setdefault("thread_subject", subject)
+
+    variants = opener_variant_list(profile)
+    if len(variants) > 1:
+        values = template_values(profile, sample_lead)
+        print("\n-- First-line A/B test: each lead gets one of these in email 1 --")
+        for index, line in enumerate(variants):
+            print(f"  {OPENER_LABELS[index]}: {render(line, values)}")
 
     queries = build_search_queries(profile)
     print(f"\n-- Web searches ({len(queries)} total, first 5) --")
