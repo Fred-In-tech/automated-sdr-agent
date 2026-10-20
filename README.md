@@ -51,8 +51,8 @@ Then answer a few questions, which takes about 5 minutes. [More about installing
   are ignored, and your inbox is never marked as read.
 - **Protects your sender reputation.** Daily limits, business hours only, a pause if bounces
   spike, and a do-not-contact list.
-- **Learns what works.** Subject-line and signature A/B tests, UTM-tagged links for Google
-  Analytics, and one polite check-in for leads who said "not now".
+- **Learns what works.** Subject-line, first-line and signature A/B tests, a breakdown of *why*
+  people said no, UTM-tagged links for Google Analytics, and one polite check-in for leads who said "not now".
 - **Reports.** A daily digest email, `sdr report`, and a local dashboard in your own brand colours
   and logo.
 - **Bring your own AI (optional).** Use an AI on your own computer (Ollama, LM Studio: free, and
@@ -266,6 +266,14 @@ Promotions.
   free 14-day trial") is fine. It's on by default (`[auto_reply] branded_intents = ["interested"]`).
 - **Test a small signature logo.** With `signature_logo_test = true`, half your leads see your
   logo beside your name. `sdr report` shows which half replies more.
+- **Test your first line.** New setups list two opening sentences in `[outreach] opener_variants`;
+  each lead gets one of them, and `sdr report` and the dashboard's **What gets replies** card show
+  which one gets more real replies. Leads with an AI-written line are counted as "ai". Add the list
+  to an older profile to start testing, or remove it to stop.
+- **See why people said no.** Replies that weren't interested are sorted into reasons ("already
+  use something", "not now", "price or budget", "wrong person"...) on the dashboard's **Why people
+  said no** card and in `sdr report`, so you know whether to change the timing, the targeting or
+  the offer.
 - **Always check before you send.** `sdr preview` shows the copy, and `sdr test-email` shows how it
   really looks in your inbox. Both styles also send a plain-text version.
 
@@ -460,7 +468,7 @@ Change settings with `sdr setup --section <name>`, or edit `config/profile.toml`
 |---|---|
 | `[sender]` | `product_name`, `product_url` (where "try it" links go), `website`, `from_name`, `from_email` (optional alias), `sign_off`, `offer`, `pitch`, `postal_address`, `require_postal_address` |
 | `[targeting]` | `ideal_client`, `professions` (job titles to search), `cities`, `search_engine`, `leads_per_run`, `min_fit_score`, `auto_send_score`, `buying_signals`, `disqualify_words`, `skip_domains`, `search_extra_words`, `keywords`, `thumbtack_categories`, `thumbtack_city_category` |
-| `[outreach]` | `emails_per_run`, `daily_send_limit`, `seconds_between_emails`, `send_days`, `send_window`, `max_bounce_rate`, `track_links`, `utm_campaign`, `subject`, `subject_variants` (A/B test), `default_opener`, `body`, `button`, `unsubscribe_line`, then `[[outreach.follow_ups]]` (`days_after_previous`, `body`, `button`) and `[outreach.not_now_follow_up]` |
+| `[outreach]` | `emails_per_run`, `daily_send_limit`, `seconds_between_emails`, `send_days`, `send_window`, `max_bounce_rate`, `track_links`, `utm_campaign`, `subject`, `subject_variants` (A/B test), `default_opener`, `opener_variants` (A/B test), `body`, `button`, `unsubscribe_line`, then `[[outreach.follow_ups]]` (`days_after_previous`, `body`, `button`) and `[outreach.not_now_follow_up]` |
 | `[email_design]` | `style` (`"personal"` or `"branded"`), `logo_url`, `brand_color`, `heading_color`, `text_color`, `background`, `tagline`, `highlights`, `signature_logo_url`, `signature_logo_test` |
 | `[auto_reply]` | `enabled`, `lookback_days`, `opt_out_words`, `branded_intents`, then `[auto_reply.replies]` (`interested`, `question`, `not_now`) and `[auto_reply.buttons]` |
 | `[sdr]` | `alert_email` (hot-lead alerts and the digest), `daily_digest` |

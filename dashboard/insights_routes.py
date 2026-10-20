@@ -11,6 +11,7 @@ from core import deliverability, lead_review, today
 from core.config import ProfileError, load_env_file, load_profile
 from core.db import log_event
 from core.funnel import compute
+from core.report import pipeline_stats
 
 INSIGHTS_SCRIPT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "insights.js")
 SCHEDULE_CACHE_SECONDS = 60   # the page refreshes every few seconds; reading the crontab spawns a process
@@ -43,8 +44,19 @@ class InsightsRoutesMixin:
             self.send_error(404, "File Not Found")
 
     def _api_insights(self) -> None:
+        try:
+            profile = load_profile()
+        except ProfileError:
+            profile = None
+        stats = pipeline_stats(profile)
+        outreach = (profile or {}).get("outreach", {}) or {}
         self._send_json({"deliverability": _with_cap(deliverability.load()), "funnel": compute(),
-                         "review_count": lead_review.count()})
+                         "review_count": lead_review.count(), "reasons": stats.get("reply_reasons", []),
+                         "tests": {"subject": stats.get("subject_ab_test", []),
+                                   "opener": stats.get("opener_ab_test", []),
+                                   "signature": stats.get("signature_ab_test", []),
+                                   "subject_texts": outreach.get("subject_variants") or [],
+                                   "opener_texts": outreach.get("opener_variants") or []}})
 
     def _api_today(self) -> None:
         try:

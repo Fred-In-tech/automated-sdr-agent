@@ -3,6 +3,7 @@ the daily digest email and the dashboard."""
 
 from datetime import datetime, timedelta, timezone
 
+from core import reply_reasons
 from core.db import get_connection
 
 HUMAN_INTENTS = ("interested", "question", "not_now", "not_interested", "unsubscribe", "wrong_person", "other")
@@ -51,6 +52,15 @@ def pipeline_stats(profile: dict | None = None) -> dict:
         FROM leads l LEFT JOIN inbound_messages m ON m.lead_id = l.id
         WHERE l.signature_variant IS NOT NULL GROUP BY l.signature_variant ORDER BY l.signature_variant
     """).fetchall()]
+    openers = [dict(r) for r in conn.execute("""
+        SELECT l.opener_variant AS variant,
+               COUNT(DISTINCT l.id) AS contacted,
+               COUNT(DISTINCT CASE WHEN is_human_reply(m.intent) THEN l.id END) AS replied,
+               COUNT(DISTINCT CASE WHEN is_positive_reply(m.intent) THEN l.id END) AS positive
+        FROM leads l LEFT JOIN inbound_messages m ON m.lead_id = l.id
+        WHERE l.opener_variant IS NOT NULL GROUP BY l.opener_variant ORDER BY l.opener_variant
+    """).fetchall()]
+    reasons = reply_reasons.breakdown(conn)
     hot = [dict(r) for r in conn.execute("""
         SELECT l.company, l.email, l.status, m.intent, m.excerpt, m.received_at
         FROM inbound_messages m JOIN leads l ON l.id = m.lead_id
@@ -84,6 +94,8 @@ def pipeline_stats(profile: dict | None = None) -> dict:
         "autoresponders_ignored": q("SELECT COUNT(*) FROM inbound_messages WHERE intent = 'auto_reply'"),
         "hot_leads": hot,
         "subject_ab_test": [{**v, "reply_rate": _pct(v["replied"], v["contacted"])} for v in variants],
+        "opener_ab_test": [{**v, "reply_rate": _pct(v["replied"], v["contacted"])} for v in openers],
+        "reply_reasons": reasons,
         "signature_ab_test": [{**v, "reply_rate": _pct(v["replied"], v["contacted"])} for v in signatures],
         "bounce_alarm": None,
     }
@@ -137,6 +149,21 @@ def render_report(stats: dict, product_name: str = "", profile: dict | None = No
             label = f'"{subjects[index]}"' if 0 <= index < len(subjects) else ""
             lines.append(f"  {v['variant']}: {v['replied']}/{v['contacted']} replied ({v['reply_rate']}%), "
                          f"{v['positive']} positive  {label}")
+    if stats.get("opener_ab_test"):
+        variants = ((profile or {}).get("outreach", {}) or {}).get("opener_variants") or []
+        lines += ["", "FIRST-LINE A/B TEST (reply rate per opening sentence)"]
+        for v in stats["opener_ab_test"]:
+            index = "ABCDEFGH".find(v["variant"])
+            label = (f'"{variants[index]}"' if 0 <= index < len(variants)
+                     else "written by your AI" if v["variant"] == "ai" else "")
+            lines.append(f"  {v['variant']:<3} {v['replied']}/{v['contacted']} replied ({v['reply_rate']}%), "
+                         f"{v['positive']} positive  {label}")
+    if stats.get("reply_reasons"):
+        lines += ["", "WHY PEOPLE SAID NO (from their replies)"]
+        for r in stats["reply_reasons"]:
+            lines.append(f"  {r['label']:<28} {r['count']}")
+            if r["example"]:
+                lines.append(f"    \"{r['example']}\"")
     if stats["signature_ab_test"]:
         lines += ["", "SIGNATURE A/B TEST (plain text vs. small logo in the signature)"]
         for v in stats["signature_ab_test"]:

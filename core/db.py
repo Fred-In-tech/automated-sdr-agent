@@ -76,6 +76,7 @@ LEAD_COLUMNS = {
     "opener": "TEXT",               # AI-written personal first line ({{opener}}), NULL = profile default
     "variant": "TEXT",              # subject-line A/B test variant ("A", "B", ...)
     "signature_variant": "TEXT",    # signature A/B test: "logo" or "plain"
+    "opener_variant": "TEXT",       # first-line A/B test: "A", "B"... or "ai" (core/config.opener_choice)
     "ai_fit": "TEXT",               # AI's one-line "why this lead fits" (see core/ai/jobs.py)
 }
 EMAIL_LOG_COLUMNS = {

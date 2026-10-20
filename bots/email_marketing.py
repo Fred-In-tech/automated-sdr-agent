@@ -20,6 +20,7 @@ from core.config import (
     load_env_file,
     load_profile,
     mail_server,
+    opener_choice,
     render,
     template_values,
 )
@@ -289,11 +290,12 @@ class EmailMarketingEngine:
         cursor.execute("""
             UPDATE leads SET status = ?, sequence_step = ?, last_contacted_at = ?, next_touch_at = ?,
                 thread_subject = COALESCE(thread_subject, ?), thread_message_id = COALESCE(thread_message_id, ?),
-                variant = COALESCE(variant, ?), signature_variant = COALESCE(signature_variant, ?)
+                variant = COALESCE(variant, ?), signature_variant = COALESCE(signature_variant, ?),
+                opener_variant = COALESCE(opener_variant, ?)
             WHERE id = ?
         """, ("contacted" if following else "no_response", step, now.isoformat(),
               following.isoformat() if following else None, subject, message_id, label or None,
-              self._signature_variant(lead), lead["id"]))
+              self._signature_variant(lead), opener_choice(self.profile, lead)[0] or None, lead["id"]))
 
     def run_outreach_campaign(self, campaign_id: int = None, limit: int | None = None, region: str = None) -> dict:
         """Send the next email of the sequence to each lead that's due, within the daily cap."""
