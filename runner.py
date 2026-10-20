@@ -4,7 +4,6 @@ Usage:
     python3 runner.py --task leadgen    (find new leads)
     python3 runner.py --task email      (send cold emails to new leads)
     python3 runner.py --task inbox      (handle replies, bounces and unsubscribes)
-    python3 runner.py --task social     (draft social posts, if [social] enabled)
     python3 runner.py --task pipeline   (inbox -> leadgen -> email -> daily digest)
     python3 runner.py --task all
 """
@@ -19,11 +18,12 @@ from core.locking import AlreadyLocked, file_lock
 from core.config import ProfileError, load_profile
 from bots.leadgen_pipeline import LeadGenPipeline
 from bots.email_marketing import EmailMarketingEngine
-from bots.social_bot import SocialBot
 from bots.inbox_listener import InboxListenerEngine
 from bots.digest import send_daily_digest
 
-TASKS = ["leadgen", "email", "inbox", "social", "pipeline", "all"]
+TASKS = ["leadgen", "email", "inbox", "pipeline", "all"]
+# Removed in 1.3.2; still accepted so an old schedule entry logs a note instead of failing.
+REMOVED_TASKS = {"social": "The social post drafter was removed in v1.3.2."}
 
 
 class AlreadyRunning(AlreadyLocked):
@@ -53,12 +53,10 @@ def run_lock(wait_seconds: float = 0):
         yield
 
 
-def _run_social(profile: dict) -> dict:
-    social = SocialBot(profile)
-    return {"scheduled": social.generate_and_schedule_thread(), "published": social.publish_pending_posts()}
-
-
 def run_task(task: str) -> dict:
+    if task in REMOVED_TASKS:
+        log_event("Runner", "RemovedTask", "info", REMOVED_TASKS[task])
+        return {"status": "removed", "message": REMOVED_TASKS[task]}
     if task not in TASKS:
         raise ValueError(f"Unknown task '{task}'. Choose one of: {', '.join(TASKS)}")
     try:
@@ -86,8 +84,6 @@ def _run_task(task: str) -> dict:
         ("email", ("email", "pipeline", "all"), "Sending outreach emails...",
          lambda: EmailMarketingEngine(profile).run_outreach_campaign()),
     ]
-    if profile.get("social", {}).get("enabled"):
-        steps.append(("social", ("social", "all"), "Drafting social posts...", lambda: _run_social(profile)))
     steps.append(("digest", ("pipeline", "all"), "Daily digest (once a day)...",
                   lambda: send_daily_digest(profile)))
 
@@ -122,7 +118,7 @@ def main():
         except (AttributeError, ValueError, OSError):
             pass
     parser = argparse.ArgumentParser(description="Outreach automation runner")
-    parser.add_argument("--task", choices=TASKS, default="all",
+    parser.add_argument("--task", choices=TASKS + list(REMOVED_TASKS), default="all",
                         help="The background task to execute (default: all)")
     args = parser.parse_args()
 

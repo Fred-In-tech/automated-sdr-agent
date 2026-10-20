@@ -65,7 +65,7 @@ class TestVersionAndParser(unittest.TestCase):
                      ["schedule", "status"], ["update", "--check"], ["update", "--scheduled"], ["update", "--force"],
                      ["doctor", "--online"], ["open", "profile"], ["preview"], ["requalify", "--dry-run"],
                      ["digest", "--force"], ["leadgen", "--count", "3"], ["email", "--limit", "2"], ["inbox"],
-                     ["social", "--topic", "x"], ["pipeline"], ["run-all"], ["export"], []):
+                     ["pipeline"], ["run-all"], ["export"], []):
             parser.parse_args(argv)
 
     def test_print_questions_through_the_cli(self):
@@ -317,7 +317,7 @@ class TestScheduleUpdateOpen(TempInstall):
 
 
 class TestLegacyCommandsTakeTheRunLock(TempInstall):
-    """`sdr leadgen/email/inbox/social` change the same leads the scheduled pipeline and the dashboard
+    """`sdr leadgen/email/inbox` change the same leads the scheduled pipeline and the dashboard
     do, so they must hold the runner's lock (data/.runner.lock) while they run: `sdr email` during the
     09:00 pipeline would otherwise pick the same "new" leads and send a first email twice."""
 
@@ -349,24 +349,19 @@ class TestLegacyCommandsTakeTheRunLock(TempInstall):
         with mock.patch("bots.leadgen_pipeline.LeadGenPipeline") as leadgen, \
                 mock.patch("bots.email_marketing.EmailMarketingEngine") as email, \
                 mock.patch("bots.inbox_listener.InboxListenerEngine") as inbox, \
-                mock.patch("bots.social_bot.SocialBot") as social, \
                 redirect_stdout(io.StringIO()) as printed:
             leadgen.return_value.run_pipeline.side_effect = record("leadgen")
             email.return_value.run_outreach_campaign.side_effect = record("email")
             inbox.return_value.check_inbox_and_auto_reply.side_effect = record("inbox")
-            social.return_value.generate_and_schedule_thread.side_effect = record("social")
-            social.return_value.publish_pending_posts.side_effect = record("publish")
-            for argv in (["leadgen", "--count", "3"], ["email", "--limit", "2"], ["inbox"], ["social", "--topic", "x"]):
+            for argv in (["leadgen", "--count", "3"], ["email", "--limit", "2"], ["inbox"]):
                 self.assertEqual(cli.main(argv, ui=ui), 0, argv)
         self.assertEqual(seen["leadgen"][:2], ((3,), {}))
         self.assertEqual(seen["email"][:2], ((), {"limit": 2}))
         self.assertEqual(seen["inbox"][:2], ((), {}))
-        self.assertEqual(seen["social"][:2], (("x",), {}))
         for name, (_args, _kwargs, held) in seen.items():
             self.assertTrue(held, f"{name} ran without the run lock")
         self.assertFalse(self.lock_is_held(), "the lock is released afterwards")
         self.assertIn('"leadgen": "done"', printed.getvalue())
-        self.assertIn('"scheduled"', printed.getvalue())
 
     def test_a_run_in_progress_means_skipped_not_a_second_run(self):
         ui, out = plain_ui()

@@ -159,7 +159,6 @@ class DashboardHandler(AIRoutesMixin, http.server.BaseHTTPRequestHandler):
         "/api/stats": "_api_stats",
         "/api/leads": "_api_leads",
         "/api/emails": "_api_emails",
-        "/api/social": "_api_social",
         "/api/logs": "_api_logs",
         "/api/update-status": "_api_update_status",
         "/api/export-csv": "_api_export_csv",
@@ -545,9 +544,6 @@ class DashboardHandler(AIRoutesMixin, http.server.BaseHTTPRequestHandler):
             "campaigns": self._query("SELECT * FROM email_campaigns ORDER BY id DESC"),
             "logs": self._query("SELECT * FROM email_logs ORDER BY id DESC LIMIT 50"),
         })
-
-    def _api_social(self) -> None:
-        self._send_json({"posts": self._query("SELECT * FROM social_posts ORDER BY id DESC LIMIT 50")})
 
     def _api_logs(self) -> None:
         self._send_json({"logs": get_recent_logs(50)})

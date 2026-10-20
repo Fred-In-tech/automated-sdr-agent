@@ -260,8 +260,3 @@ monthly_budget_usd = 0       # hosted AI only: pause AI for the month at this es
 # timeout_seconds = 120      # default 120 for AI on your computer, 60 for hosted
 # The hosted key lives in .env as AI_API_KEY (setup saves it there), never in this file.
 
-# ── Social posts (drafts only — nothing is posted to X/Twitter) ──────
-[social]
-enabled = false
-topics = ["Why {{category}}s are switching to {{product_name}}"]
-posts = ["""Tip for {{category}}s: ... Try {{product_name}}: {{product_url}}"""]

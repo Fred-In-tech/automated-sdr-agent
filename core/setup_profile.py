@@ -451,11 +451,6 @@ daily_digest = true
 
 [updates]
 {_kv("mode", v["updates"]["mode"], "notify | auto | off")}
-
-[social]
-enabled = false
-topics = []
-posts = []
 """
 
 

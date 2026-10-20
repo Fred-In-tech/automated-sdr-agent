@@ -9,6 +9,16 @@ forward to one of those tags, and it shows you the notes below before it does.
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-10-20
+
+### Removed
+
+- **The Social Bot (X) tab and the social post drafter** (`sdr social`, `runner.py --task social`
+  and the `[social]` settings). It only drafted placeholder posts and never posted anything, so it
+  added clutter without helping anyone get clients. Old schedule entries that still run the
+  `social` task now log a short note instead of failing. Existing `[social]` settings in your
+  profile are simply ignored, and old drafted posts stay in your database untouched.
+
 ## [1.3.1] - 2026-10-19
 
 ### Fixed
