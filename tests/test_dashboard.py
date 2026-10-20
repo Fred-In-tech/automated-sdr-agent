@@ -809,8 +809,8 @@ class TestDashboardPage(unittest.TestCase):
         self.assertNotIn("fonts.g", self.page)
         self.assertNotIn("'Inter'", self.page)
         self.assertIn("system-ui", self.page)
-        # script-src is 'self' + inline only: the one script file is served by the dashboard itself
-        self.assertEqual(re.findall(r'<script[^>]*\bsrc="([^"]*)"', self.page), ["/settings.js"])
+        # script-src is 'self' + inline only: the script files are served by the dashboard itself
+        self.assertEqual(re.findall(r'<script[^>]*\bsrc="([^"]*)"', self.page), ["/settings.js", "/ai.js"])
 
 
 # ── Recognising our own dashboard (`sdr dashboard` port reuse) ──────────────
