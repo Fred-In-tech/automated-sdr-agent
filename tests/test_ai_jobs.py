@@ -105,6 +105,23 @@ class TestAnswers(unittest.TestCase):
         run, _ = run_with("It's only $99 a year, best deal around.")
         self.assertIsNone(answer_question(run, PROFILE, self.LEAD, "How much?"))
 
+    def test_jobs_leave_room_for_thinking_models(self):
+        run, fake = run_with("Plans start at $29 a month.")
+        captured = {}
+        real = run._chat
+
+        def spy(cfg, system, user, *, schema=None, max_tokens=400):
+            captured["max_tokens"] = max_tokens
+            return real(cfg, system, user, schema=schema, max_tokens=max_tokens)
+        run._chat = spy
+        answer_question(run, PROFILE, self.LEAD, "How much?")
+        self.assertGreaterEqual(captured["max_tokens"], 1000)
+
+    def test_answer_prompt_forbids_guessing(self):
+        run, fake = run_with("x")
+        answer_question(run, PROFILE, self.LEAD, "Do you integrate with HoneyBook?")
+        self.assertIn("never guess", fake.calls[0]["system"].lower())
+
     def test_links_and_long_answers_rejected(self):
         self.assertFalse(is_valid_answer("See https://brightline.example for pricing.", PROFILE))
         self.assertFalse(is_valid_answer(" ".join(["word"] * 130), PROFILE))

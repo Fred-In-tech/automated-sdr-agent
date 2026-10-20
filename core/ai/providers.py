@@ -28,6 +28,9 @@ JOB_CHOICES = {
 }
 JOB_DEFAULTS = {"openers": "auto", "reply_intent": "auto", "answer_questions": "review", "lead_fit": "auto"}
 DEFAULT_TIMEOUT = 60.0
+# A local model's first answer includes loading it into memory, which can take a minute or more
+# on a busy laptop, so local AI gets longer by default.
+DEFAULT_LOCAL_TIMEOUT = 120.0
 DEFAULT_KEY_ENV = "AI_API_KEY"
 LEGACY_KEY_ENV = "ANTHROPIC_API_KEY"
 
@@ -130,7 +133,8 @@ def load_ai_config(profile: Mapping, environ: Mapping[str, str] | None = None) -
     key = environ.get(key_env) or (environ.get(LEGACY_KEY_ENV) if provider == "anthropic" else None) or None
     return AIConfig(mode=mode, provider=provider, adapter=preset.adapter, base_url=base_url,
                     model=str(ai.get("model") or "").strip(), api_key=key, auth=preset.auth,
-                    timeout=_number(ai.get("timeout_seconds"), DEFAULT_TIMEOUT) or DEFAULT_TIMEOUT,
+                    timeout=_number(ai.get("timeout_seconds"), 0.0) or (
+                        DEFAULT_LOCAL_TIMEOUT if is_private_host(base_url) else DEFAULT_TIMEOUT),
                     monthly_budget_usd=_number(ai.get("monthly_budget_usd"), 0.0), jobs=_jobs(ai))
 
 

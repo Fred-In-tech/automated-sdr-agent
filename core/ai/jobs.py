@@ -27,6 +27,9 @@ MAX_REPLY_CHARS = 4000
 MAX_ANSWER_WORDS = 120
 MAX_FIT_CHARS = 160
 FAILURES_BEFORE_PAUSE = 2
+# Generous: "thinking" models spend part of this on hidden reasoning before the answer. Answers
+# are length-checked afterwards, and providers only charge for what was actually written.
+ANSWER_ROOM = 1500
 # Rough hosted prices (USD per million tokens) for the budget estimate. Owners can override with
 # [ai] input_price / output_price; local models cost nothing.
 DEFAULT_PRICES = (3.0, 15.0)
@@ -66,7 +69,7 @@ TRIAGE_SCHEMA = {"type": "object", "properties": {"intent": {"type": "string", "
 ANSWER_SYSTEM = """You help a small business owner answer a question a prospect asked in reply to their email.
 
 Rules:
-- Answer only from the FACTS below. If the facts don't answer the question, say you'll check and get back to them.
+- Answer only from the FACTS below. If the facts don't cover something, never guess yes or no: say you'll check and get back to them.
 - 2-4 short sentences, plain text, friendly and direct, like the owner typing it themselves.
 - No greeting, no sign-off, no links, no email addresses, no placeholders.
 - Never invent prices, features, dates, discounts or promises.
@@ -226,7 +229,7 @@ def write_opener(run: AIRun, company: str, category: str, page_text: str) -> str
     site = " ".join((page_text or "").split())[:MAX_SITE_CHARS]
     user = (f"Business: {company}\nWhat they do: {category}\n\n<website_text>\n{site}\n</website_text>\n\n"
             "Write the opening sentence.")
-    text = run.ask("openers", OPENER_SYSTEM, user, max_tokens=120)
+    text = run.ask("openers", OPENER_SYSTEM, user, max_tokens=ANSWER_ROOM)
     return text if text and is_valid_opener(text) else None
 
 
@@ -236,7 +239,7 @@ def classify_reply(run: AIRun, text: str, opt_out_words) -> str:
     if fallback == "unsubscribe":
         return fallback
     answer = run.ask("reply_intent", TRIAGE_SYSTEM, f"<reply>\n{(text or '')[:MAX_REPLY_CHARS]}\n</reply>",
-                     schema=TRIAGE_SCHEMA, max_tokens=60)
+                     schema=TRIAGE_SCHEMA, max_tokens=ANSWER_ROOM)
     intent = (extract_json(answer) or {}).get("intent") if answer else None
     return intent if intent in INTENTS else fallback
 
@@ -246,7 +249,7 @@ def answer_question(run: AIRun, profile: Mapping, lead: Mapping, reply_text: str
     user = (f"FACTS:\n{_facts(profile)}\n\nThe prospect ({lead.get('first_name') or 'they'} at "
             f"{lead.get('company') or 'their business'}) wrote:\n<reply>\n{(reply_text or '')[:MAX_REPLY_CHARS]}\n</reply>\n\n"
             "Write the answer.")
-    text = run.ask("answer_questions", ANSWER_SYSTEM, user, max_tokens=300)
+    text = run.ask("answer_questions", ANSWER_SYSTEM, user, max_tokens=ANSWER_ROOM)
     return text if text and is_valid_answer(text, profile) else None
 
 
@@ -256,7 +259,7 @@ def explain_fit(run: AIRun, profile: Mapping, company: str, page_text: str, rule
     ideal = profile.get("targeting", {}).get("ideal_client", "")
     user = (f"Seller's ideal client: {ideal}\nBusiness: {company}\nRule-based notes: {', '.join(rule_reasons or [])}\n\n"
             f"<website_text>\n{site}\n</website_text>")
-    text = run.ask("lead_fit", FIT_SYSTEM, user, max_tokens=80)
+    text = run.ask("lead_fit", FIT_SYSTEM, user, max_tokens=ANSWER_ROOM)
     if not text:
         return None
     line = text.strip().splitlines()[0].strip().strip('"')
