@@ -17,7 +17,7 @@ from core.notifications import NotificationManager
 from core.email_verifier import verify_lead_email, filter_scraped_emails
 from core.config import load_env_file, load_profile
 from core.qualify import FREEMAIL_DOMAINS, clean_company_name, pick_best_contact, root_domain, score_lead
-from core.ai import ai_enabled, write_opener
+from core.ai import AIRun, explain_fit, write_opener
 from core.robots import ROBOTS_CACHE_SECONDS, SCRAPER_HEADERS, RobotsRules, fetch_robots_txt  # noqa: F401 (re-exported)
 from core.search import describe_search, search_stopped, search_web, start_search_run
 from bots.lead_store import export_leads_to_csv, known_domains, save_leads  # noqa: F401 (re-exported)
@@ -201,6 +201,22 @@ def scrape_site(base_url: str, skip_domains: set = SKIP_DOMAINS_GLOBAL) -> dict:
     return site
 
 
+# One AI connection per profile for the whole run, so its circuit breaker and budget apply to
+# every lead found in that run (not reset per lead).
+_AI_RUNS: dict[int, AIRun] = {}
+
+
+def ai_for(profile: dict) -> AIRun:
+    run = _AI_RUNS.get(id(profile))
+    if run is None or run.profile is not profile:
+        run = _AI_RUNS[id(profile)] = AIRun(profile)
+    return run
+
+
+def reset_ai_runs() -> None:
+    _AI_RUNS.clear()
+
+
 def qualify_site(profile: dict, site: dict, *, source: str, location: str, category: str,
                  title: str, name_hint: str = "", page_title: str = "") -> dict | None:
     """Turn a scraped site into a lead: best contact, ICP fit score, clean names.
@@ -210,13 +226,20 @@ def qualify_site(profile: dict, site: dict, *, source: str, location: str, categ
         return None
     company = name_hint or clean_company_name(site["site_name"], page_title or site["title"], site["domain"])
     email, fit = pick_best_contact(profile, site["emails"], site["domain"], site["page_text"], company)
-    mx_reason, opener = "", None
+    mx_reason, opener, opener_draft, ai_fit = "", None, None, None
     if fit["qualified"]:
         ok, mx_reason = verify_lead_email(email)
         if not ok:
             return None
-        if ai_enabled(profile):
-            opener = write_opener(profile, company, category, site["page_text"])
+        ai = ai_for(profile)
+        if ai.enabled("openers"):
+            text = write_opener(ai, company, category, site["page_text"])
+            if ai.job_mode("openers") == "review":
+                opener_draft = text      # saved to the review queue once the lead has an id
+            else:
+                opener = text
+        if ai.enabled("lead_fit"):
+            ai_fit = explain_fit(ai, profile, company, site["page_text"], fit["reasons"])
     return {
         "name": company,
         "company": company,
@@ -232,6 +255,8 @@ def qualify_site(profile: dict, site: dict, *, source: str, location: str, categ
         "fit_reasons": fit["reasons"],
         "status": "new" if fit["qualified"] else "disqualified",
         "opener": opener,
+        "opener_draft": opener_draft,
+        "ai_fit": ai_fit,
     }
 
 
