@@ -9,7 +9,7 @@ from email.mime.multipart import MIMEMultipart
 from email.utils import make_msgid
 from datetime import datetime, timedelta, timezone
 from core.ai import drafts as ai_drafts
-from core import deliverability
+from core import deliverability, lead_review
 from core.db import get_connection, log_event, init_db
 from core.notifications import NotificationManager
 from core.email_checks import tls_context
@@ -297,6 +297,10 @@ class EmailMarketingEngine:
     def run_outreach_campaign(self, campaign_id: int = None, limit: int | None = None, region: str = None) -> dict:
         """Send the next email of the sequence to each lead that's due, within the daily cap."""
         now = datetime.now(timezone.utc)
+        stale_reviews = lead_review.expire()
+        if stale_reviews:
+            log_event("EmailMarketingEngine", "LeadReview", "info",
+                      f"{stale_reviews} borderline lead(s) waited over 7 days for review and were skipped.")
         expired = ai_drafts.expire_pending("opener", ai_drafts.OPENER_REVIEW_WINDOW)
         if expired:
             log_event("EmailMarketingEngine", "AIDraft", "info",

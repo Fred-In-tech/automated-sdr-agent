@@ -47,7 +47,7 @@ SECTION_KEYS: dict[str, dict[str, list[str]]] = {
     },
     "audience": {
         "sender": ["pitch"],
-        "targeting": ["ideal_client", "professions", "cities", "search_engine"],
+        "targeting": ["ideal_client", "professions", "cities", "search_engine", "auto_send_score"],
     },
     "style": {
         "email_design": ["style", "signature_logo_url", "signature_logo_test"],
@@ -286,6 +286,7 @@ def managed_values(a: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
             "cities": list(_get(a, "audience.cities", [])),
             "search_engine": _get(a, "audience.search_engine", "auto"),
             "leads_per_run": int(_get(a, "audience.leads_per_run", DEFAULT_LEADS_PER_RUN)),
+            "auto_send_score": int(_get(a, "audience.auto_send_score", 70)),
         },
         "outreach": {
             "send_days": list(_get(a, "schedule.send_days", DEFAULT_SEND_DAYS)),
@@ -387,6 +388,7 @@ thumbtack_city_category = ""       # optional (US): e.g. "photographers"
 skip_domains = []
 {_kv("leads_per_run", t["leads_per_run"])}
 min_fit_score = 50
+{_kv("auto_send_score", t["auto_send_score"], "leads under this wait for your review; 0 = never")}
 
 [outreach]
 {_kv("emails_per_run", o["emails_per_run"])}
@@ -514,6 +516,7 @@ def state_from_profile(profile: Mapping[str, Any] | None, env: Mapping[str, str]
         "audience.job_titles": targeting.get("professions"),
         "audience.cities": targeting.get("cities"),
         "audience.leads_per_run": targeting.get("leads_per_run"),
+        "audience.auto_send_score": targeting.get("auto_send_score"),
         "audience.search_engine": targeting.get("search_engine"),
         "style.kind": "marketing" if design.get("style") == "branded" or (
             not design.get("style") and design.get("enabled")) else ("sales" if design else None),
@@ -550,7 +553,7 @@ def state_from_profile(profile: Mapping[str, Any] | None, env: Mapping[str, str]
 
 
 _LIST_KEYS = {"audience.job_titles", "audience.cities", "schedule.run_times", "schedule.send_days"}
-_INT_KEYS = {"audience.leads_per_run", "schedule.reply_check_minutes", "schedule.daily_send_limit",
+_INT_KEYS = {"audience.leads_per_run", "audience.auto_send_score", "schedule.reply_check_minutes", "schedule.daily_send_limit",
              "schedule.emails_per_run", "ai.monthly_budget_usd"}
 
 

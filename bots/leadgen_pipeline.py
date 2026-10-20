@@ -253,7 +253,7 @@ def qualify_site(profile: dict, site: dict, *, source: str, location: str, categ
         "mx_verified": mx_reason,
         "fit_score": fit["score"],
         "fit_reasons": fit["reasons"],
-        "status": "new" if fit["qualified"] else "disqualified",
+        "status": ("review" if fit.get("needs_review") else "new") if fit["qualified"] else "disqualified",
         "opener": opener,
         "opener_draft": opener_draft,
         "ai_fit": ai_fit,

@@ -13,6 +13,7 @@
     sdr open               where your files are (for your editor or AI agent)
     sdr ai test            check your AI connection;  sdr drafts  review AI drafts
     sdr followups          today's follow-ups (who to get back to, and when)
+    sdr review             borderline leads waiting for your OK
     sdr version
 
 Older commands still work: leadgen, email, inbox, pipeline, run-all, export, requalify,
@@ -364,6 +365,7 @@ def build_parser() -> argparse.ArgumentParser:
     ai.add_argument("action", nargs="?", choices=["test"], default="test")
     sub.add_parser("drafts", help="Review AI drafts waiting for your approval")
     sub.add_parser("followups", help="Today's follow-ups: who to get back to, and when")
+    sub.add_parser("review", help="Borderline leads waiting for your OK before their first email")
 
     requalify = sub.add_parser("requalify", help="Re-score leads saved before fit-scoring existed")
     requalify.add_argument("--dry-run", action="store_true", help="Show the result without changing anything")
@@ -495,6 +497,10 @@ def dispatch(args: argparse.Namespace, ui: UI) -> int:
         from core.config import load_env_file
         load_env_file()
         return cmd_ai_test(ui, load_profile())
+    if command == "review":
+        from core.cli_review import cmd_review
+        init_db()
+        return cmd_review(ui)
     if command == "followups":
         from core.cli_followups import cmd_followups
         init_db()

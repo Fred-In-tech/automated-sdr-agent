@@ -40,7 +40,7 @@ REQUIRED_FILES = [
 CLI_COMMANDS = [
     "setup", "preview", "test-email", "dashboard", "run", "report", "status", "schedule on",
     "schedule off", "schedule status", "update", "doctor", "open", "requalify", "export", "digest",
-    "ai test", "drafts", "followups",
+    "ai test", "drafts", "followups", "review",
 ]
 
 # The setup answers contract (section -> keys) that AI agents fill in for the user.
