@@ -157,6 +157,11 @@ def _request(cfg: AIConfig, method: str, url: str, body: dict | None, opener: Op
         raise AIError(f"{cfg.label} sent back something that isn't JSON. Is the address right?") from None
     if not isinstance(value, dict):
         raise AIError(f"{cfg.label} sent back an unexpected answer.")
+    if "error" in value and not any(key in value for key in ("choices", "content", "message", "data", "models")):
+        error = value["error"]
+        detail = error.get("message", "") if isinstance(error, dict) else str(error)
+        raise AIError(redact(f"{cfg.label} said: {detail[:MAX_ERROR_TEXT]} Check the address and model in "
+                             "Settings > AI.", (cfg.api_key,)))
     return value
 
 

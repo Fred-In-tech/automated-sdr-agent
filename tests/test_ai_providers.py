@@ -44,6 +44,20 @@ class TestLoadConfig(unittest.TestCase):
         self.assertEqual(c.base_url, "https://llm.example.com/v1")
         self.assertEqual(c.api_key, "sk-123")
 
+    def test_address_copied_from_the_ai_app_gets_v1(self):
+        # LM Studio shows "http://127.0.0.1:1234"; its API lives under /v1
+        for typed in ("http://127.0.0.1:1234", "http://127.0.0.1:1234/"):
+            self.assertEqual(cfg({"mode": "local_only", "provider": "lmstudio", "base_url": typed}).base_url,
+                             "http://127.0.0.1:1234/v1")
+        self.assertEqual(cfg({"mode": "hosted", "provider": "custom", "base_url": "https://llm.example.com"}).base_url,
+                         "https://llm.example.com/v1")
+        kept = ("https://acme.openai.azure.com/openai/v1", "https://generativelanguage.googleapis.com/v1beta/openai")
+        self.assertEqual(cfg({"mode": "hosted", "provider": "azure", "base_url": kept[0]}).base_url, kept[0])
+        self.assertEqual(cfg({"mode": "hosted", "provider": "gemini", "base_url": kept[1]}).base_url, kept[1])
+        # Ollama's own API has no /v1
+        self.assertEqual(cfg({"mode": "local_only", "provider": "ollama", "base_url": "http://localhost:11434"}).base_url,
+                         "http://localhost:11434")
+
     def test_key_defaults_to_ai_api_key(self):
         self.assertEqual(cfg({"mode": "hosted", "provider": "openai", "model": "m"}, {"AI_API_KEY": "k"}).api_key, "k")
 

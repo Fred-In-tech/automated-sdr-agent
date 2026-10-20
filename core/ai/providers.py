@@ -119,6 +119,18 @@ def _legacy(ai: Mapping, environ: Mapping[str, str]) -> AIConfig:
                     model=str(ai.get("model") or ""), api_key=key, auth=preset.auth, jobs=_jobs(ai))
 
 
+def _with_api_path(base_url: str, adapter: str) -> str:
+    """AI apps show their server as "http://127.0.0.1:1234", but the OpenAI-style API lives under
+    /v1. An address with no path gets /v1, so the address people copy from the app just works."""
+    if adapter != "openai" or not base_url:
+        return base_url
+    try:
+        path = urlsplit(base_url).path
+    except ValueError:
+        return base_url
+    return base_url + "/v1" if path in ("", "/") else base_url
+
+
 def load_ai_config(profile: Mapping, environ: Mapping[str, str] | None = None) -> AIConfig:
     """The [ai] settings as an AIConfig. Anything unknown or incomplete means AI is off."""
     environ = os.environ if environ is None else environ
@@ -132,7 +144,7 @@ def load_ai_config(profile: Mapping, environ: Mapping[str, str] | None = None) -
     if mode not in MODES or mode == "off" or provider not in PRESETS:
         return AIConfig()
     preset = PRESETS[provider]
-    base_url = str(ai.get("base_url") or preset.base_url).strip().rstrip("/")
+    base_url = _with_api_path(str(ai.get("base_url") or preset.base_url).strip().rstrip("/"), preset.adapter)
     key_env = str(ai.get("api_key_env") or DEFAULT_KEY_ENV).strip()
     if any(part in key_env.upper() for part in FORBIDDEN_KEY_PARTS):
         key = None                    # e.g. "SMTP_PASS": never send the mailbox password to an AI
