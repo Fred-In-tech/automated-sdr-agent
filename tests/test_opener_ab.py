@@ -44,6 +44,12 @@ class TestOpenerChoice(unittest.TestCase):
         self.assertEqual(opener_choice(PROFILE, lead)[0], "ai")
         self.assertEqual(template_values(PROFILE, lead)["opener"], lead["opener"])
 
+    def test_a_single_string_or_number_is_not_a_list(self):
+        for raw in ("I came across {{company}}.", 3, {"a": "b"}, None):
+            profile = {**PROFILE, "outreach": {"default_opener": "D.", "opener_variants": raw}}
+            self.assertEqual(opener_choice(profile, LEAD), ("", "D."))
+            self.assertEqual(template_values(profile, LEAD)["opener"], "D.")
+
     def test_blank_or_bad_variants_are_ignored(self):
         profile = {**PROFILE, "outreach": {"default_opener": "D.", "opener_variants": ["", 3, "  "]}}
         self.assertEqual(opener_choice(profile, LEAD), ("", "D."))

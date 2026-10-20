@@ -4,6 +4,7 @@ the daily digest email and the dashboard."""
 from datetime import datetime, timedelta, timezone
 
 from core import reply_reasons
+from core.config import opener_variant_list
 from core.db import get_connection
 
 HUMAN_INTENTS = ("interested", "question", "not_now", "not_interested", "unsubscribe", "wrong_person", "other")
@@ -150,7 +151,7 @@ def render_report(stats: dict, product_name: str = "", profile: dict | None = No
             lines.append(f"  {v['variant']}: {v['replied']}/{v['contacted']} replied ({v['reply_rate']}%), "
                          f"{v['positive']} positive  {label}")
     if stats.get("opener_ab_test"):
-        variants = ((profile or {}).get("outreach", {}) or {}).get("opener_variants") or []
+        variants = opener_variant_list(profile or {})
         lines += ["", "FIRST-LINE A/B TEST (reply rate per opening sentence)"]
         for v in stats["opener_ab_test"]:
             index = "ABCDEFGH".find(v["variant"])

@@ -21,8 +21,8 @@ REASONS = (
     ("opted_out", "Asked to be removed", ("unsubscribe", "remove me", "take me off", "stop emailing",
                                            "stop sending", "do not contact", "don't contact", "dont contact")),
     ("wrong_person", "Wrong person", ("not the right person", "wrong person", "no longer with", "no longer work",
-                                      "doesn't work here", "does not work here", "talk to", "contact our",
-                                      "forwarded", "looping in")),
+                                      "doesn't work here", "does not work here", "talk to someone else",
+                                      "better person", "the person who handles", "looping in")),
     ("has_tool", "Already use something", ("already have", "already use", "already using", "we use", "we're using",
                                            "we are using", "happy with our", "happy with what", "have a system",
                                            "have a tool", "have software", "built our own", "in-house")),
@@ -55,6 +55,8 @@ def reason_for(intent: str | None, text: str | None) -> str | None:
     replies, autoresponders and bounces (they aren't a "no")."""
     if not intent or intent in SKIPPED_INTENTS:
         return None
+    if intent in ("not_now", "wrong_person", "unsubscribe"):
+        return INTENT_FALLBACK[intent]   # the reply's intent already says why; words could only blur it
     t = normalize(text)
     for key, _label, phrases in REASONS:
         if any(_has(t, phrase) for phrase in phrases):

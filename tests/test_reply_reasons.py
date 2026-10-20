@@ -24,6 +24,12 @@ class TestReasonFor(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertEqual(reason_for("not_interested", text), reason)
 
+    def test_the_intent_wins_over_friendly_words(self):
+        self.assertEqual(reason_for("not_now", "Not right now, but happy to talk to you in the spring."), "timing")
+        self.assertEqual(reason_for("not_now", "We use it seasonally, ask me in May."), "timing")
+        self.assertEqual(reason_for("not_interested", "We already use X, contact our office if that changes."),
+                         "has_tool")
+
     def test_the_intent_decides_when_the_words_dont(self):
         self.assertEqual(reason_for("not_interested", "No."), "no_reason")
         self.assertEqual(reason_for("not_now", "Ping me in March."), "timing")

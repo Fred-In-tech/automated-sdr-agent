@@ -282,6 +282,23 @@ class TestSendingRules(SequenceTestCase):
         for message in self.sent:
             self.assertTrue(message["subject"].startswith(("alpha", "beta")))
 
+    def test_first_line_test_is_recorded_on_the_first_email_only(self):
+        ids = [self.add_lead(f"hi@o{i}.test", 70) for i in range(6)]
+        self.engine.profile["outreach"]["opener_variants"] = ["Alpha {{company}}.", "Beta {{company}}."]
+        self.engine.run_outreach_campaign()
+        self.assertEqual({self.lead(i)["opener_variant"] for i in ids}, {"A", "B"})
+        for message in self.sent:
+            self.assertTrue(any(line in message["text"] for line in ("Alpha ", "Beta ")))
+
+    def test_a_lead_emailed_before_the_test_is_not_credited_to_it(self):
+        lead_id = self.add_lead("hi@before.test", 70)
+        self.engine.profile["outreach"].pop("opener_variants", None)
+        self.engine.run_outreach_campaign()                       # first email: default line, no test yet
+        self.engine.profile["outreach"]["opener_variants"] = ["Alpha.", "Beta."]
+        self.make_due(lead_id)
+        self.engine.run_outreach_campaign()                       # follow-up
+        self.assertIsNone(self.lead(lead_id)["opener_variant"])
+
     def test_not_now_gets_one_check_in_in_the_same_thread(self):
         lead_id = self.add_lead("hi@studio.test", 80)
         self.engine.run_outreach_campaign()
