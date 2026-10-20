@@ -76,6 +76,7 @@ LEAD_COLUMNS = {
     "opener": "TEXT",               # AI-written personal first line ({{opener}}), NULL = profile default
     "variant": "TEXT",              # subject-line A/B test variant ("A", "B", ...)
     "signature_variant": "TEXT",    # signature A/B test: "logo" or "plain"
+    "ai_fit": "TEXT",               # AI's one-line "why this lead fits" (see core/ai/jobs.py)
 }
 EMAIL_LOG_COLUMNS = {
     "step": "INTEGER DEFAULT 1",
@@ -194,6 +195,21 @@ def init_db():
             intent TEXT,
             action TEXT,
             received_at TEXT NOT NULL,
+            FOREIGN KEY (lead_id) REFERENCES leads(id)
+        )
+    """)
+
+    # 7. AI drafts waiting for the owner (core/ai/drafts.py)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS ai_drafts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            lead_id INTEGER NOT NULL,
+            kind TEXT NOT NULL,
+            body TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            context TEXT DEFAULT '{}',
+            created_at TEXT NOT NULL,
+            decided_at TEXT,
             FOREIGN KEY (lead_id) REFERENCES leads(id)
         )
     """)
