@@ -248,8 +248,10 @@ def capped_limit(limit: int, result: Mapping) -> tuple[int, str]:
     """(daily limit to use, why it's lower). A Problem caps sending until it's fixed."""
     if result.get("status") != "problem" or limit <= DELIVERABILITY_CAP:
         return limit, ""
-    names = ", ".join(c.get("label", c.get("key", "")) for c in problems(result)) or "a DNS problem"
-    return DELIVERABILITY_CAP, (f"Sending is limited to {DELIVERABILITY_CAP} a day until {names} is fixed "
+    found = [c.get("label", c.get("key", "")) for c in problems(result)]
+    names = (", ".join(found[:-1]) + " and " + found[-1]) if len(found) > 1 else (found[0] if found else "a DNS problem")
+    verb = "are" if len(found) > 1 else "is"
+    return DELIVERABILITY_CAP, (f"Sending is limited to {DELIVERABILITY_CAP} a day until {names} {verb} fixed "
                                 "(see `sdr doctor` or the dashboard), so your domain's reputation isn't hurt.")
 
 

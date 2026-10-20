@@ -192,6 +192,36 @@
     .ai-draft-kind { font-weight: 600; }
     .ai-draft-badge { margin-left: 0.5rem; font-size: 0.75rem; font-weight: 600; color: var(--danger); }
     .ai-draft-text { width: 100%; }
+    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem; margin-bottom: 1.25rem; }
+    .grid-2 > .section-card { margin-bottom: 0; }
+    .dl-card-problem { border-left: 4px solid var(--danger); }
+    .dl-card-warning { border-left: 4px solid #D97706; }
+    .dl-card-ok { border-left: 4px solid var(--success); }
+    .dl-pill { font-size: 0.75rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 999px;
+               background: color-mix(in srgb, var(--muted) 14%, white); color: var(--muted); }
+    .dl-pill-ok { background: color-mix(in srgb, var(--success) 12%, white); color: var(--success); }
+    .dl-pill-warning { background: color-mix(in srgb, #D97706 14%, white); color: #B45309; }
+    .dl-pill-problem { background: color-mix(in srgb, var(--danger) 12%, white); color: var(--danger); }
+    .dl-banner { background: color-mix(in srgb, var(--danger) 8%, white); color: var(--danger); border-radius: 10px;
+                 padding: 0.6rem 0.8rem; margin-bottom: 0.75rem; font-size: 0.88rem; font-weight: 600; }
+    .dl-check { display: flex; gap: 0.6rem; padding: 0.55rem 0; border-top: 1px solid var(--border); font-size: 0.9rem; }
+    .dl-icon { flex: none; width: 1.4rem; height: 1.4rem; border-radius: 50%; display: grid; place-items: center;
+               font-size: 0.75rem; font-weight: 800; background: color-mix(in srgb, var(--muted) 14%, white); color: var(--muted); }
+    .dl-ok .dl-icon { background: color-mix(in srgb, var(--success) 14%, white); color: var(--success); }
+    .dl-warning .dl-icon { background: color-mix(in srgb, #D97706 16%, white); color: #B45309; }
+    .dl-problem .dl-icon { background: color-mix(in srgb, var(--danger) 14%, white); color: var(--danger); }
+    .dl-body { min-width: 0; }
+    .dl-record { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.35rem; }
+    .dl-record code { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.2rem 0.45rem;
+                      font-size: 0.8rem; overflow-wrap: anywhere; }
+    .dl-copy { padding: 0.25rem 0.55rem; font-size: 0.75rem; }
+    .fn-row { display: grid; grid-template-columns: minmax(150px, 1.1fr) 2fr minmax(70px, auto); gap: 0.6rem;
+              align-items: center; padding: 0.35rem 0; font-size: 0.88rem; }
+    .fn-track { height: 0.6rem; background: var(--bg); border-radius: 999px; overflow: hidden; }
+    .fn-bar { height: 100%; background: var(--brand); border-radius: 999px; transition: width 0.4s ease-out; }
+    .fn-count { font-variant-numeric: tabular-nums; color: var(--muted); text-align: right; }
+    .fn-won { font-weight: 700; color: var(--success); margin-top: 0.5rem; }
+    .lr-why { margin: 0.3rem 0 0.4rem 1rem; color: var(--muted); font-size: 0.86rem; }
     .fu-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.75rem; padding: 0.9rem 0;
               border-top: 1px solid var(--border); }
     .fu-row-overdue { border-left: 3px solid var(--danger); padding-left: 0.75rem; }
@@ -333,6 +363,8 @@
           <div class="stat-subtext" id="stat-positive-rate">0% positive</div>
         </div>
       </div>
+
+      <div id="insights-root"></div>
 
       <div class="section-card" id="alarm-card" style="display:none; border-color: #ef4444;">
         <div class="section-title">🛑 Sending paused</div>
@@ -527,6 +559,7 @@
   <script src="/settings.js"></script>
   <script src="/ai.js"></script>
   <script src="/followups.js"></script>
+  <script src="/insights.js"></script>
   <script>
     function esc(value) {
       return String(value ?? '').replace(/[&<>"']/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch]));

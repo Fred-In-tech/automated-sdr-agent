@@ -182,6 +182,31 @@ def check_dashboard(env: Mapping[str, str]) -> list[Check]:
     return [Check("Dashboard", "ok", "password protected")]
 
 
+DOCTOR_STATUS = {"ok": "ok", "warning": "warn", "problem": "fail", "info": "info"}
+
+
+def check_deliverability(profile: dict | None, env: Mapping[str, str], *, offline: bool) -> list[Check]:
+    """SPF, DKIM, DMARC and MX of the sending domain (core/deliverability.py), one line each."""
+    from core import deliverability
+    result = deliverability.load() if offline else deliverability.refresh_if_stale(profile or {}, env, force=True)
+    if result.get("status") in (None, "unknown"):
+        why = result.get("message") or ("not checked yet" if offline else "couldn't check")
+        return [Check("Deliverability", "info", f"{why}. Run `{CLI_NAME} doctor` while online to check SPF, DKIM and DMARC.")]
+    _limit, cap_note = deliverability.capped_limit(10**6, result)
+    checks = []
+    for item in result.get("checks", []):
+        detail = item.get("detail", "")
+        if item.get("fix") and item.get("status") != "ok":
+            detail += f" Fix: {item['fix']}"
+        if item.get("record") and item.get("status") != "ok":
+            detail += f" Record: {item['record']}"
+        if item.get("status") == "problem" and cap_note:
+            detail += f" {cap_note}"
+        checks.append(Check(f"Deliverability: {item.get('label', item.get('key'))}",
+                            DOCTOR_STATUS.get(item.get("status"), "info"), detail))
+    return checks
+
+
 def check_updates(profile: dict | None, deps: DoctorDeps) -> list[Check]:
     from core.product import version
     from core.updater import update_mode
@@ -217,6 +242,7 @@ def collect(profile_path: str | None = None, env: Mapping[str, str] | None = Non
     checks += check_schedule(deps)
     checks += check_dashboard(env)
     checks += check_updates(profile, deps)
+    checks += check_deliverability(profile, env, offline=offline)
     from core.cli_ai import ai_doctor_checks
     checks += ai_doctor_checks(profile, env, online=online and not offline)
     return checks

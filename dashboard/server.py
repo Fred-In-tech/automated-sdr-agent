@@ -43,6 +43,7 @@ from core.product import DISPLAY_NAME, version
 from core.report import pipeline_stats
 from dashboard.ai_routes import AIRoutesMixin
 from dashboard.followup_routes import FollowupRoutesMixin
+from dashboard.insights_routes import InsightsRoutesMixin
 from dashboard.login_page import render_login_page
 from runner import TASKS, run_task
 from bots.leadgen_pipeline import export_leads_to_csv
@@ -146,7 +147,7 @@ CLEAR_SESSION_COOKIE = _session_cookie("", 0)
 # ── Request handling ─────────────────────────────────────────────────────────
 
 
-class DashboardHandler(AIRoutesMixin, FollowupRoutesMixin, http.server.BaseHTTPRequestHandler):
+class DashboardHandler(AIRoutesMixin, FollowupRoutesMixin, InsightsRoutesMixin, http.server.BaseHTTPRequestHandler):
     timeout = 30  # a stalled client can't pin a worker thread forever
     session: Session | None = None
     body: bytes = b""
@@ -167,6 +168,7 @@ class DashboardHandler(AIRoutesMixin, FollowupRoutesMixin, http.server.BaseHTTPR
         "/api/settings": "_api_settings",
         "/settings.js": "_settings_script",
         **AIRoutesMixin.AI_GET_ROUTES, **FollowupRoutesMixin.FOLLOWUP_GET_ROUTES,
+        **InsightsRoutesMixin.INSIGHTS_GET_ROUTES,
     }
 
     def log_message(self, format, *args):
@@ -417,7 +419,7 @@ class DashboardHandler(AIRoutesMixin, FollowupRoutesMixin, http.server.BaseHTTPR
         if path == "/api/resume-sending":
             self._api_resume_sending()
             return
-        handler = {**self.AI_POST_ROUTES, **self.FOLLOWUP_POST_ROUTES}.get(path)
+        handler = {**self.AI_POST_ROUTES, **self.FOLLOWUP_POST_ROUTES, **self.INSIGHTS_POST_ROUTES}.get(path)
         if handler:
             getattr(self, handler)()
             return

@@ -73,25 +73,74 @@
     ]);
   }
 
-  async function loadDrafts() {
-    const root = document.getElementById('ai-needs-you');
-    if (!root) return;
+  // ── borderline leads waiting for the owner's OK ──────────────────────────
+
+  async function decideLead(lead, action, status, buttons) {
+    buttons.forEach(b => { b.disabled = true; });
     let data;
     try {
       await sessionReady;
-      const res = await api('/api/ai/drafts');
+      const res = await api('/api/lead-review', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: lead.id, action }),
+      });
       data = await res.json();
+    } catch (err) {
+      data = { success: false, message: 'That could not be saved. Reload the page and try again.' };
+    }
+    status.className = 'set-status ' + (data.success ? 'set-ok' : 'set-error');
+    status.textContent = data.success ? (action === 'approve' ? 'Approved: emailed with the next run.' : 'Rejected.')
+      : (data.message || 'Not saved.');
+    if (!data.success) { buttons.forEach(b => { b.disabled = false; }); return; }
+    setTimeout(loadDrafts, 1200);
+  }
+
+  function leadRow(lead) {
+    const status = el('div', { class: 'set-status', role: 'status' });
+    const approve = el('button', { class: 'btn', type: 'button', text: 'Approve' });
+    const reject = el('button', { class: 'btn btn-secondary', type: 'button', text: 'Reject' });
+    approve.addEventListener('click', () => decideLead(lead, 'approve', status, [approve, reject]));
+    reject.addEventListener('click', () => decideLead(lead, 'reject', status, [approve, reject]));
+    const why = (lead.reasons || []).concat(lead.ai_fit ? ['AI: ' + lead.ai_fit] : []);
+    return el('div', { class: 'ai-draft' }, [
+      el('div', { class: 'ai-draft-head' }, [
+        el('span', { class: 'ai-draft-kind', text: 'Email this lead? (fit ' + (lead.fit_score ?? '?') + ')' }),
+        el('span', { class: 'set-help', text: ' · ' + (lead.company || lead.name || '') + ' <' + (lead.email || '') + '>' }),
+      ]),
+      lead.website ? el('a', { href: lead.website, target: '_blank', rel: 'noopener noreferrer', class: 'set-help',
+                               text: lead.website }) : null,
+      el('ul', { class: 'lr-why' }, why.map(r => el('li', { text: r }))),
+      el('div', { class: 'set-actions' }, [approve, reject, status]),
+    ]);
+  }
+
+  async function loadDrafts() {
+    const root = document.getElementById('ai-needs-you');
+    if (!root) return;
+    let data = {}, leads = [];
+    try {
+      await sessionReady;
+      const [draftsRes, leadsRes] = await Promise.all([api('/api/ai/drafts'), api('/api/lead-review')]);
+      data = await draftsRes.json();
+      leads = (await leadsRes.json()).leads || [];
     } catch (err) {
       return;
     }
     root.textContent = '';
     const items = data.drafts || [];
-    root.hidden = items.length === 0;
-    if (!items.length) return;
-    root.appendChild(el('div', { class: 'section-title', text: 'Needs you (' + items.length + ')' }));
-    root.appendChild(el('p', { class: 'set-help', text: 'Your AI wrote these. Edit anything you like, then Approve '
-      + '(it goes out with the next run) or Skip (the standard wording is used). ' + ((data.ai || {}).notice || '') }));
-    items.forEach(item => root.appendChild(draftRow(item)));
+    const total = items.length + leads.length;
+    root.hidden = total === 0;
+    if (!total) return;
+    root.appendChild(el('div', { class: 'section-title', text: 'Needs you (' + total + ')' }));
+    if (leads.length) {
+      root.appendChild(el('p', { class: 'set-help', text: 'These leads qualified, but not clearly. Approve the ones you want '
+        + 'emailed; the rest are skipped after 7 days.' }));
+      leads.forEach(lead => root.appendChild(leadRow(lead)));
+    }
+    if (items.length) {
+      root.appendChild(el('p', { class: 'set-help', text: 'Your AI wrote these. Edit anything you like, then Approve '
+        + '(it goes out with the next run) or Skip (the standard wording is used). ' + ((data.ai || {}).notice || '') }));
+      items.forEach(item => root.appendChild(draftRow(item)));
+    }
   }
 
   // ── Settings > AI: Test connection ───────────────────────────────────────
