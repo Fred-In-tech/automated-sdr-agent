@@ -7,7 +7,7 @@ import unittest
 from unittest import mock
 
 import core.db as db
-from bots import leadgen_pipeline
+from bots import leadgen_pipeline, site_reader
 from bots.lead_store import save_leads
 from core.ai import drafts
 from core.ai.connectors import AIError, Reply
@@ -42,8 +42,8 @@ class TestLeadFinding(SequenceTestCase):
     def qualify(self, jobs):
         self.profile["ai"] = {**LOCAL_AI, "jobs": jobs}
         with mock.patch("core.ai.jobs.chat", fake_chat({"first sentence": OPENER, "one short line": FIT})), \
-                mock.patch.object(leadgen_pipeline, "verify_lead_email", lambda e: (True, "ok")), \
-                mock.patch.object(leadgen_pipeline, "pick_best_contact",
+                mock.patch.object(site_reader, "verify_lead_email", lambda e: (True, "ok")), \
+                mock.patch.object(site_reader, "pick_best_contact",
                                   lambda *a: ("ivy@lanternhall.test", {"qualified": True, "score": 80,
                                                                        "first_name": "Ivy", "reasons": ["fits"]})):
             leadgen_pipeline.reset_ai_runs()
@@ -67,7 +67,7 @@ class TestLeadFinding(SequenceTestCase):
     def test_ai_off_changes_nothing(self):
         self.profile["ai"] = {"mode": "off"}
         leadgen_pipeline.reset_ai_runs()
-        with mock.patch.object(leadgen_pipeline, "verify_lead_email", lambda e: (True, "ok")):
+        with mock.patch.object(site_reader, "verify_lead_email", lambda e: (True, "ok")):
             lead = leadgen_pipeline.qualify_site(self.profile, self.SITE, source="t", location="Austin, TX",
                                                  category="event planner", title="Owner")
         self.assertIsNone(lead["opener"])

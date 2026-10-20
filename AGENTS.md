@@ -369,6 +369,7 @@ core/
   lead_import.py        CSV lead import: column matching, safety checks (dashboard + CLI)
   settings_api.py       the dashboard's Settings page: reads settings, saves a section via the setup code
   tui.py tui_validation.py   terminal UI (banner, prompts, plain fallback, answers files)
+  tui_output.py         the UI's printing side: banner, steps, messages, tables, spinner
   tui_stdin.py          lets the arrow-key prompts read the keyboard under `curl | bash` on macOS
   brand_detect.py       reads name/logo/colours from the user's website
   email_checks.py       mail provider presets, SMTP/IMAP login check, verification code
@@ -380,7 +381,7 @@ core/
   db.py                 SQLite (data/automations.db)
   today.py              the dashboard's Today strip (sent vs. limit, next run, follow-ups due)
   qualify.py intent.py outreach_rules.py email_design.py email_verifier.py ai.py report.py notifications.py
-bots/                   leadgen_pipeline.py (+ lead_store.py), email_marketing.py, inbox_listener.py, digest.py
+bots/                   leadgen_pipeline.py (+ lead_store.py, site_reader.py: reads and scores one website), email_marketing.py, inbox_listener.py, digest.py
 dashboard/              server.py (localhost-only web server) + index.html, app.css, app.js (Overview), tables.js (Leads, Emails) + one script per tab
 config/                 profile.example.toml (documented template); profile.toml and do_not_contact.txt are the user's own (gitignored)
 data/                   the user's database, logs, backups, update_status.json (gitignored)
