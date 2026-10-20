@@ -53,7 +53,13 @@ Nothing is sent to the author, and there's no telemetry or analytics. The tool o
   respecting robots.txt;
 - your mail server;
 - GitHub, with a `git fetch` to check for updates;
-- the Anthropic API and Telegram/Discord webhooks, only if you turn them on.
+- your AI, only if you turn it on (`[ai]`). With **AI on this computer** (Ollama, LM Studio...)
+  it connects only to that app on your computer or local network, and nothing leaves it; local-only
+  mode refuses any internet address. With **hosted AI** it connects over https to the provider you
+  chose (OpenAI, Anthropic, Google, Groq, OpenRouter, Mistral, Azure or your own address) and sends
+  the lead's name and company, a snippet of their website text and the text of their replies. Your
+  API key stays in `.env` and is never shown again or written to logs;
+- Telegram/Discord webhooks, only if you turn them on.
 
 The dashboard is served from your own computer and loads no third-party fonts, scripts or styles,
 so opening it (including its login page) tells nobody else. The only remote content it shows is

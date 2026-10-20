@@ -32,7 +32,7 @@ Then answer a few questions, which takes about 5 minutes. [More about installing
 ---
 
 **Contents:** [What it does](#what-it-does) · [Install](#install-in-one-line) ·
-[Setup](#the-5-minute-setup) · [AI agents](#let-an-ai-agent-set-it-up) · [Daily use](#daily-use) ·
+[Setup](#the-5-minute-setup) · [AI agents](#let-an-ai-agent-set-it-up) · [Daily use](#daily-use) · [Your AI](#your-ai) ·
 [Sales vs marketing emails](#sales-vs-marketing-emails) · [Lead search](#where-leads-come-from) ·
 [Updates](#updates) · [Security & privacy](#security--privacy) · [Play by the rules](#play-by-the-rules) ·
 [Configuration](#configuration-reference) · [Troubleshooting](#troubleshooting) ·
@@ -55,8 +55,10 @@ Then answer a few questions, which takes about 5 minutes. [More about installing
   Analytics, and one polite check-in for leads who said "not now".
 - **Reports.** A daily digest email, `sdr report`, and a local dashboard in your own brand colours
   and logo.
-- **Optional AI.** With a Claude API key it writes a personal first line for each lead and reads
-  replies more accurately.
+- **Bring your own AI (optional).** Use an AI on your own computer (Ollama, LM Studio: free, and
+  nothing leaves the computer) or your own key for OpenAI, Claude, Gemini, Groq and others. It writes
+  a personal first line for each lead, sorts replies, drafts answers to questions and explains why
+  each lead fits. You approve drafts first if you want to. See [Your AI](#your-ai).
 
 Nothing about your business is hardcoded. Your targets and email wording live in one file,
 `config/profile.toml`, which the setup writes for you.
@@ -269,6 +271,41 @@ Promotions.
 Nothing can guarantee the Primary tab. Sending from your own domain, warming up slowly (see
 [sending limits](#play-by-the-rules)) and keeping emails short and personal all help.
 
+## Your AI
+
+AI is optional and off until you turn it on. Everything works without it, and if your AI is
+slow, offline or gives a bad answer, the built-in rules take over, so AI never stops your emails.
+
+**Turn it on:** `sdr setup --section ai`, or the dashboard's **Settings > AI**. Then press
+**Test connection** (or run `sdr ai test`).
+
+| Choice | What it means |
+|---|---|
+| **AI on this computer** | [Ollama](https://ollama.com), LM Studio, llama.cpp, vLLM or Jan. Free, and nothing leaves your computer. Setup finds a running Ollama or LM Studio for you |
+| **Hosted AI with your own key** | OpenAI, Anthropic (Claude), Google Gemini, Groq, OpenRouter, Mistral, Azure OpenAI, or any OpenAI-compatible address. Lead names, companies, a snippet of their website and their replies are sent to that provider. Your key stays in `.env` on your computer |
+
+Quick start with Ollama: install it, run `ollama pull llama3.2`, then choose **AI on this
+computer > Ollama** in setup.
+
+What the AI may do, each with its own switch:
+
+| Job | Default | Without AI |
+|---|---|---|
+| A personal first line for each lead, from their website | Used automatically (or **Show me first**) | Your standard first line |
+| Read and sort replies (interested, question, not now...) | On | The built-in rules |
+| Draft answers to leads' questions, from your **AI facts** (prices, FAQ) | **Show me first** | Your standard reply |
+| One line on why each lead fits (hover the Fit score on the Leads tab) | On | The rule-based reasons |
+
+"Show me first" drafts wait on the dashboard's **Needs you** card (or `sdr drafts`): edit, approve
+or skip. A first email waits for its approved first line; an approved answer goes out with the next
+run. Every draft is checked before it can be used: no links, no phrases like "hope this finds you
+well", no prices that aren't in your facts.
+
+Tips: small local models can guess when your facts don't cover a question, so keep answers on
+**Show me first** unless you've checked them for a while. "Thinking" models (like Gemma 4 or Qwen
+3) are slower and can run out of room; a regular instruct model is the better choice here. For
+hosted AI you can set a **monthly budget**: AI pauses for the month when the estimate reaches it.
+
 ## Where leads come from
 
 Lead search uses one web search engine, chosen in setup (`sdr setup --section audience`) or in
@@ -403,7 +440,7 @@ Change settings with `sdr setup --section <name>`, or edit `config/profile.toml`
 | `[sdr]` | `alert_email` (hot-lead alerts and the digest), `daily_digest` |
 | `[schedule]` | `run_times` (e.g. `["09:00", "14:00"]`), `reply_check_minutes` (`0` = only at full runs) |
 | `[updates]` | `mode`: `"notify"`, `"auto"` or `"off"` |
-| `[ai]` | `enabled`, `model`. It also needs `ANTHROPIC_API_KEY` in `.env` and `pip install anthropic` in the project's `.venv` |
+| `[ai]` | `mode` (`off`, `local_only`, `hosted`), `provider`, `model`, `base_url`, `facts`, the job switches `openers`, `reply_intent`, `answer_questions`, `lead_fit`, and `monthly_budget_usd`. The key (hosted only) lives in `.env` as `AI_API_KEY`. See [Your AI](#your-ai) |
 | `[social]` | `enabled`, `topics`, `posts`. Drafts only; nothing is ever posted |
 
 **Placeholders** you can use in any email or reply: `{{first_name}}` (a real first name, or

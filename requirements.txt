@@ -16,5 +16,3 @@ certifi>=2026.7.22
 soupsieve>=2.10
 pygments>=2.21.0
 
-# Optional: Claude AI personalisation + reply triage ([ai] enabled = true in config/profile.toml)
-# anthropic>=0.60

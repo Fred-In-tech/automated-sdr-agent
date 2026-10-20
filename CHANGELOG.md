@@ -9,6 +9,49 @@ forward to one of those tags, and it shows you the notes below before it does.
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-19
+
+### Added
+
+- **Bring your own AI.** Connect an AI on your own computer (Ollama, LM Studio, llama.cpp, vLLM or
+  Jan: free, and nothing leaves the computer) or a hosted provider with your own key (OpenAI,
+  Anthropic Claude, Google Gemini, Groq, OpenRouter, Mistral, Azure OpenAI, or any
+  OpenAI-compatible address). Set it up with `sdr setup --section ai` or the dashboard's
+  **Settings > AI**. Setup finds a running Ollama or LM Studio and lists its models for you.
+- **Four AI jobs, each with its own switch:** a personal first line for each lead (from their
+  website), sorting replies, **drafting answers to leads' questions** from the facts you write
+  (prices, what's included, FAQ), and **one line on why each lead fits** (hover the Fit score on the
+  Leads tab). Every job falls back to the built-in rules when AI is off, slow or wrong: AI never
+  stops your emails.
+- **You approve AI drafts first, if you want.** "Show me first" drafts wait on a new **Needs you**
+  card on the dashboard (or `sdr drafts` in the terminal): edit, approve or skip. A first email waits
+  for its approved first line; approved answers go out with the next run. Answers default to
+  "Show me first".
+- **Test connection** button in Settings > AI and `sdr ai test`: lists the models, asks one tiny
+  question, and explains what to fix in plain words ("Ollama isn't running", "model not found:
+  ollama pull …", "key rejected").
+- `sdr doctor` shows your AI and what data leaves the computer.
+- A monthly budget for hosted AI: AI pauses for the month when the estimated spend reaches it.
+
+### Security and privacy
+
+- "AI on this computer" refuses any address on the internet, and hosted AI must use https.
+- Your AI key is stored in `.env` (owner-only) as `AI_API_KEY`, never in `profile.toml`, never
+  shown again, and removed from every error message.
+- Every AI draft is checked before use: no links, no email addresses, no placeholders, no stock
+  "AI" phrases, no prices that aren't in your facts. Website text and replies are treated as data,
+  never as instructions. AI text in emails is escaped, so it can't add HTML.
+- Unsubscribes are always decided by the built-in rules first, never by the AI.
+
+### Changed
+
+- AI no longer needs the `anthropic` package: it talks to every provider directly, with nothing
+  extra to install. Profiles that used Claude before (`[ai] enabled = true` with
+  `ANTHROPIC_API_KEY`) keep working as "Hosted AI: Anthropic".
+- Works with "thinking" models and slower computers: local AI gets 120 seconds by default (the
+  first answer includes loading the model), reasoning written inline is removed, and a model that
+  thinks without answering gets a clear message instead of failing silently.
+
 ## [1.2.5] - 2026-10-12
 
 ### Changed
