@@ -27,3 +27,27 @@ def _throwaway_database():
             yield
         finally:
             patch.undo()
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _no_real_dns_or_deliverability_file():
+    """Deliverability checks never query real DNS or write data/deliverability.json in tests:
+    lookups report "DNS unavailable" (status unknown, no cap) unless a test injects a resolver."""
+    if os.getenv("RUN_LIVE_TESTS") == "1":
+        yield
+        return
+    import core.deliverability as dv
+
+    def offline(name, rtype):
+        raise dv.DNSUnavailable("tests are offline")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        patch = pytest.MonkeyPatch()
+        patch.setattr(dv, "_resolve", offline)
+        patch.setattr(dv, "_default_path", lambda: os.path.join(tmp, "deliverability.json"))
+        patch.setattr(dv.refresh_if_stale, "__kwdefaults__", {**dv.refresh_if_stale.__kwdefaults__, "resolve": offline})
+        patch.setattr(dv.run_checks, "__kwdefaults__", {**dv.run_checks.__kwdefaults__, "resolve": offline})
+        try:
+            yield
+        finally:
+            patch.undo()
