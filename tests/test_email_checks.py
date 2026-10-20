@@ -529,11 +529,12 @@ class TestSmtpOnlySender(unittest.TestCase):
 
 class TestRobotsTxt(unittest.TestCase):
     def setUp(self):
-        from bots import leadgen_pipeline
+        from bots import leadgen_pipeline, site_reader
         self.lp = leadgen_pipeline
+        self.reader = site_reader      # the robots/fetch code lives here; leadgen_pipeline re-exports it
         self.lp.clear_robots_cache()
         self.logged = []
-        self.log_patch = mock.patch.object(leadgen_pipeline, "log_event",
+        self.log_patch = mock.patch.object(site_reader, "log_event",
                                            lambda *args: self.logged.append(args))
         self.log_patch.start()
 
@@ -612,7 +613,7 @@ class TestRobotsTxt(unittest.TestCase):
         clock = [1000.0]
         fake_time = types.SimpleNamespace(monotonic=lambda: clock[0], sleep=lambda s: None)
         fetch = self.fetcher({"https://acme.test/robots.txt": (200, "User-agent: *\nDisallow:\n")})
-        with mock.patch.object(self.lp, "time", fake_time):
+        with mock.patch.object(self.reader, "time", fake_time):
             self.lp.robots_allowed("https://acme.test/", fetch)
             clock[0] += self.lp.ROBOTS_CACHE_SECONDS - 1
             self.lp.robots_allowed("https://acme.test/", fetch)
@@ -624,8 +625,9 @@ class TestRobotsTxt(unittest.TestCase):
 
 class TestSafeGetRespectsRobots(unittest.TestCase):
     def setUp(self):
-        from bots import leadgen_pipeline
+        from bots import leadgen_pipeline, site_reader
         self.lp = leadgen_pipeline
+        self.reader = site_reader      # the robots/fetch code lives here; leadgen_pipeline re-exports it
         if not leadgen_pipeline.REQUESTS_AVAILABLE:
             self.skipTest("requests is not installed")
         self.lp.clear_robots_cache()
@@ -634,10 +636,10 @@ class TestSafeGetRespectsRobots(unittest.TestCase):
                   "https://studio.test/robots.txt": (200, "User-agent: *\nDisallow: /about\n")}
         self.response = mock.Mock(status_code=200, text="<html></html>")
         self.patches = [
-            mock.patch.object(leadgen_pipeline, "log_event", lambda *args: self.logged.append(args)),
-            mock.patch.object(leadgen_pipeline, "_fetch_robots_txt",
+            mock.patch.object(site_reader, "log_event", lambda *args: self.logged.append(args)),
+            mock.patch.object(site_reader, "_fetch_robots_txt",
                               lambda url: robots.get(url, (404, ""))),
-            mock.patch.object(leadgen_pipeline.requests, "get", return_value=self.response),
+            mock.patch.object(site_reader.requests, "get", return_value=self.response),
         ]
         self.mocks = [p.start() for p in self.patches]
         self.get = self.mocks[2]
@@ -664,8 +666,8 @@ class TestSafeGetRespectsRobots(unittest.TestCase):
         self.assertIn("Chrome/120", self.lp.SCRAPER_HEADERS["User-Agent"])
 
     def test_scrape_site_skips_disallowed_pages(self):
-        with mock.patch.object(self.lp, "time", types.SimpleNamespace(sleep=lambda s: None,
-                                                                      monotonic=lambda: 0.0)):
+        with mock.patch.object(self.reader, "time", types.SimpleNamespace(sleep=lambda s: None,
+                                                                          monotonic=lambda: 0.0)):
             self.lp.scrape_site("https://studio.test/")
         fetched = [c.args[0] for c in self.get.call_args_list]
         self.assertEqual(fetched, ["https://studio.test", "https://studio.test/contact",

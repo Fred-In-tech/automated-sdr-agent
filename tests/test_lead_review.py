@@ -4,7 +4,7 @@ import io
 from datetime import datetime, timedelta, timezone
 from unittest import mock
 
-from bots import leadgen_pipeline
+from bots import leadgen_pipeline, site_reader
 from core import db, lead_review
 from core.qualify import score_lead
 from core.tui import UI
@@ -33,7 +33,7 @@ class TestBand(SequenceTestCase):
         profile = self.profile_with(min_fit_score=30, auto_send_score=95)
         site = {"emails": ["info@bloom.test"], "domain": "bloom.test", "site_name": "Bloom", "title": "Bloom",
                 "website": "https://bloom.test", "page_text": SITE_TEXT}
-        with mock.patch.object(leadgen_pipeline, "verify_lead_email", lambda e: (True, "ok")):
+        with mock.patch.object(site_reader, "verify_lead_email", lambda e: (True, "ok")):
             leadgen_pipeline.reset_ai_runs()
             lead = leadgen_pipeline.qualify_site(profile, site, source="t", location="Austin, TX",
                                                  category="wedding planner", title="Owner")
