@@ -185,6 +185,13 @@
     .set-actions { display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap; }
     .set-status { font-size: 0.88rem; line-height: 1.5; color: var(--muted); flex: 1; min-width: 200px; }
     .set-ok { color: var(--success); }
+    .ai-needs-you { border-left: 4px solid var(--brand); }
+    .ai-draft { border-top: 1px solid var(--border); padding-top: 0.9rem; margin-top: 0.9rem; }
+    .ai-draft-stale { border-left: 3px solid var(--danger); padding-left: 0.75rem; }
+    .ai-draft-head { margin-bottom: 0.4rem; }
+    .ai-draft-kind { font-weight: 600; }
+    .ai-draft-badge { margin-left: 0.5rem; font-size: 0.75rem; font-weight: 600; color: var(--danger); }
+    .ai-draft-text { width: 100%; }
     .set-error { color: #B42318; }
     .set-checklist ul { list-style: none; margin-top: 0.75rem; display: grid; gap: 0.5rem; }
     .set-checklist a { color: var(--ink); font-weight: 600; }
@@ -270,6 +277,8 @@
 
     <!-- OVERVIEW TAB -->
     <div id="tab-overview" class="tab-content active">
+
+      <section id="ai-needs-you" class="section-card ai-needs-you" hidden aria-live="polite"></section>
 
       <div class="target-chips">
         <span style="color:var(--text-main); font-weight:600; font-size:0.85rem; margin-right:0.5rem;">Target Audience:</span>
@@ -512,6 +521,7 @@
   </div>
 
   <script src="/settings.js"></script>
+  <script src="/ai.js"></script>
   <script>
     function esc(value) {
       return String(value ?? '').replace(/[&<>"']/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch]));
@@ -701,7 +711,7 @@
           tr.innerHTML = `
             <td>#${esc(l.id)}</td>
             <td><strong>${esc(l.first_name || '-')}</strong></td>
-            <td title="${esc((l.fit_reasons_list || []).join(' · '))}">${esc(l.fit_score ?? '-')}</td>
+            <td title="${esc(l.ai_fit || (l.fit_reasons_list || []).join(' · '))}">${esc(l.fit_score ?? '-')}</td>
             <td>${esc(l.company)}</td>
             <td><code>${esc(l.email)}</code></td>
             <td><span class="badge badge-purple">${esc(l.category)}</span></td>
