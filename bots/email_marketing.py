@@ -9,6 +9,7 @@ from email.mime.multipart import MIMEMultipart
 from email.utils import make_msgid
 from datetime import datetime, timedelta, timezone
 from core.ai import drafts as ai_drafts
+from core import deliverability
 from core.db import get_connection, log_event, init_db
 from core.notifications import NotificationManager
 from core.email_checks import tls_context
@@ -220,6 +221,20 @@ class EmailMarketingEngine:
         print(f"[DRY-RUN -> {to_email}] Subject: {subject}")
         return False
 
+    def _deliverability_limit(self) -> int:
+        """The daily limit, capped while the sending domain has an unfixed DNS problem
+        (core/deliverability.py). Re-checked at most once a day; a failed lookup never caps."""
+        try:
+            result = deliverability.refresh_if_stale(self.profile, os.environ)
+        except Exception as exc:  # noqa: BLE001 - a check that breaks must never stop sending
+            log_event("EmailMarketingEngine", "Deliverability", "warning", f"Check skipped: {exc}")
+            return self.daily_limit
+        limit, note = deliverability.capped_limit(self.daily_limit, result)
+        if note:
+            print(f"⚠️  [Deliverability]: {note}")
+            log_event("EmailMarketingEngine", "Deliverability", "warning", note)
+        return limit
+
     def _sent_today(self, cursor) -> int:
         local_midnight = datetime.now().astimezone().replace(hour=0, minute=0, second=0, microsecond=0)
         cursor.execute("SELECT COUNT(*) FROM email_logs WHERE sent_at >= ?",
@@ -312,12 +327,13 @@ class EmailMarketingEngine:
             log_event("EmailMarketingEngine", "BounceAlarm", "error", alarm)
             self.notifier.notify_all("🛑 Outreach paused: high bounce rate", alarm)
             return {"status": "blocked", "message": alarm, "sent_count": 0}
+        daily_limit = self._deliverability_limit()
         sent_today = self._sent_today(cursor)
-        budget = min(limit or self.max_per_run, self.max_per_run, self.daily_limit - sent_today)
+        budget = min(limit or self.max_per_run, self.max_per_run, daily_limit - sent_today)
         if budget <= 0:
             conn.close()
-            log_event("EmailMarketingEngine", "RunCampaign", "info", f"Daily limit reached ({sent_today}/{self.daily_limit}).")
-            return {"status": "info", "message": f"Daily limit reached ({sent_today}/{self.daily_limit}).", "sent_count": 0}
+            log_event("EmailMarketingEngine", "RunCampaign", "info", f"Daily limit reached ({sent_today}/{daily_limit}).")
+            return {"status": "info", "message": f"Daily limit reached ({sent_today}/{daily_limit}).", "sent_count": 0}
 
         target_leads = self._pick_leads(cursor, budget, region)
         if not target_leads:
@@ -331,7 +347,7 @@ class EmailMarketingEngine:
         base_headers = ({"List-Unsubscribe": f"<mailto:{self.from_email}?subject=unsubscribe>"}
                         if self.from_email and self.profile["outreach"].get("list_unsubscribe_header") else {})
         sent_emails = []
-        print(f"\n🚀 [Outreach] Up to {len(target_leads)} emails (sent today: {sent_today}/{self.daily_limit})...")
+        print(f"\n🚀 [Outreach] Up to {len(target_leads)} emails (sent today: {sent_today}/{daily_limit})...")
 
         do_not_contact = load_do_not_contact()
         for idx, lead in enumerate(target_leads):
@@ -390,7 +406,7 @@ class EmailMarketingEngine:
         conn.close()
         first_touches = sum(1 for e in sent_emails if e["step"] == 1)
         summary = (f"Sent {len(sent_emails)} emails ({first_touches} first touches, "
-                   f"{len(sent_emails) - first_touches} follow-ups). Today: {sent_today + len(sent_emails)}/{self.daily_limit}.")
+                   f"{len(sent_emails) - first_touches} follow-ups). Today: {sent_today + len(sent_emails)}/{daily_limit}.")
         log_event("EmailMarketingEngine", "RunCampaign", "success", summary)
         return {
             "region": region or "Global",
