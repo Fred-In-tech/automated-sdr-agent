@@ -1,8 +1,10 @@
 """Daily SDR digest: one email a day with the funnel, hot leads and what's coming up."""
 
 import os
+import sqlite3
 from datetime import datetime, timezone
 
+from core import followups
 from core.config import load_env_file
 from core.db import get_connection, log_event
 from core.report import pipeline_stats, render_report
@@ -37,8 +39,16 @@ def send_daily_digest(profile: dict, force: bool = False) -> dict:
     updates = digest_lines(profile)  # "Update available: vX.Y.Z" / "Updated to vX.Y.Z"
     if updates:
         text += "\n\nUPDATES\n" + "\n".join("  " + line for line in updates)
+    try:
+        due = followups.digest_lines()
+    except sqlite3.Error:      # a database from before Follow-ups existed: the digest goes out without it
+        due = []
+    if due:
+        text += "\n\nFOLLOW-UPS DUE\n" + "\n".join("  " + line for line in due)
     hot = len(stats["hot_leads"])
     subject = f"📊 {product} SDR digest: {stats['sent_today']} sent today, {hot} hot lead{'s' if hot != 1 else ''}"
+    if due:
+        subject += f", {len(due)} follow-up{'s' if len(due) != 1 else ''} due"
     sent = EmailMarketingEngine(profile).send_real_email(to, subject, text_to_html(text), text)
     log_event("SDR", "DailyDigest", "success" if sent else "info",
               f"Digest {'sent' if sent else 'not sent (no email login)'} to {to}")
