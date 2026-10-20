@@ -326,7 +326,8 @@ class PrivacyPromisesTest(unittest.TestCase):
         otherwise send the user's IP to a third party the docs never mention."""
         for doc in ("README.md", "SECURITY.md"):
             self.assertIn("no third-party fonts, scripts or styles", read(doc), doc)
-        for page in ("dashboard/index.html", "dashboard/server.py"):
+        for page in ("dashboard/index.html", "dashboard/app.css", "dashboard/app.js", "dashboard/tables.js",
+                     "dashboard/server.py"):
             source = read(page)
             for host in ("googleapis.com", "gstatic.com", "jsdelivr.net", "unpkg.com", "cdnjs.", "cloudflare.com"):
                 self.assertNotIn(host, source, f"{page} loads from {host}")

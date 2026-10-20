@@ -32,9 +32,8 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
-from core.db import init_db, get_db_stats, get_recent_logs, get_connection, log_event
+from core.db import init_db, log_event
 from core.config import ProfileError, load_profile
-from core.outreach_rules import resume_sending
 from core.dashboard_auth import (LoginLimiter, Session, SessionStore, configured_password_hash,
                                  ensure_instance_token, instance_proof, instance_token, is_nonce,
                                  is_valid_hash, new_nonce, proof_matches, record_instance_port,
@@ -42,11 +41,11 @@ from core.dashboard_auth import (LoginLimiter, Session, SessionStore, configured
 from core.product import DISPLAY_NAME, version
 from core.report import pipeline_stats
 from dashboard.ai_routes import AIRoutesMixin
+from dashboard.data_routes import DataRoutesMixin
 from dashboard.followup_routes import FollowupRoutesMixin
 from dashboard.insights_routes import InsightsRoutesMixin
 from dashboard.login_page import render_login_page
 from runner import TASKS, run_task
-from bots.leadgen_pipeline import export_leads_to_csv
 
 PORT = 8080
 HOST = "127.0.0.1"  # this computer only — never expose the dashboard to the network
@@ -58,7 +57,7 @@ AUTH_PATHS = ("/login", "/logout")
 INSTANCE_PATH = "/api/instance"  # answered before login: how `sdr dashboard` recognises its own server
 MAX_LOGIN_BODY_BYTES = 4 * 1024
 MAX_API_BODY_BYTES = 64 * 1024
-IMPORT_PATH = "/api/import-leads"
+from dashboard.data_routes import IMPORT_PATH  # noqa: E402  (bigger body limit for CSV uploads)
 MAX_IMPORT_BODY_BYTES = 2 * 1024 * 1024   # a 1 MB CSV, JSON-escaped
 DRAIN_LIMIT_BYTES = 4 * 1024 * 1024  # read (and drop) oversized bodies up to this, so the error reply isn't lost
 PROBE_TIMEOUT_SECONDS = 0.5
@@ -155,7 +154,7 @@ CLEAR_SESSION_COOKIE = _session_cookie("", 0)
 # ── Request handling ─────────────────────────────────────────────────────────
 
 
-class DashboardHandler(AIRoutesMixin, FollowupRoutesMixin, InsightsRoutesMixin, http.server.BaseHTTPRequestHandler):
+class DashboardHandler(DataRoutesMixin, AIRoutesMixin, FollowupRoutesMixin, InsightsRoutesMixin, http.server.BaseHTTPRequestHandler):
     timeout = 30  # a stalled client can't pin a worker thread forever
     session: Session | None = None
     body: bytes = b""
@@ -166,16 +165,10 @@ class DashboardHandler(AIRoutesMixin, FollowupRoutesMixin, InsightsRoutesMixin, 
         "/api/session": "_api_session",
         "/api/profile": "_api_profile",
         "/api/pipeline": "_api_pipeline",
-        "/api/stats": "_api_stats",
-        "/api/leads": "_api_leads",
-        "/api/emails": "_api_emails",
-        "/api/logs": "_api_logs",
         "/api/update-status": "_api_update_status",
-        "/api/export-csv": "_api_export_csv",
-        "/api/import-template": "_api_import_template",
         "/api/settings": "_api_settings",
         **{path: "_static" for path in STATIC_FILES},
-        **AIRoutesMixin.AI_GET_ROUTES, **FollowupRoutesMixin.FOLLOWUP_GET_ROUTES,
+        **DataRoutesMixin.DATA_GET_ROUTES, **AIRoutesMixin.AI_GET_ROUTES, **FollowupRoutesMixin.FOLLOWUP_GET_ROUTES,
         **InsightsRoutesMixin.INSIGHTS_GET_ROUTES,
     }
 
@@ -418,42 +411,14 @@ class DashboardHandler(AIRoutesMixin, FollowupRoutesMixin, InsightsRoutesMixin, 
         if path == "/api/run-bot":
             self._api_run_bot()
             return
-        if path == IMPORT_PATH:
-            self._api_import_leads()
-            return
         if path == "/api/settings":
             self._api_save_settings()
             return
-        if path == "/api/resume-sending":
-            self._api_resume_sending()
-            return
-        handler = {**self.AI_POST_ROUTES, **self.FOLLOWUP_POST_ROUTES, **self.INSIGHTS_POST_ROUTES}.get(path)
+        handler = {**self.DATA_POST_ROUTES, **self.AI_POST_ROUTES, **self.FOLLOWUP_POST_ROUTES, **self.INSIGHTS_POST_ROUTES}.get(path)
         if handler:
             getattr(self, handler)()
             return
         self.send_error(404, "Endpoint Not Found")
-
-    def _api_import_leads(self) -> None:
-        """Import leads from CSV text the page read from a file. Saves leads; sends nothing."""
-        from core.lead_import import LeadImportError, import_csv_text
-        try:
-            payload = json.loads(self.body.decode("utf-8"))
-            text, dry_run = payload["csv"], bool(payload.get("dry_run"))
-            if not isinstance(text, str):
-                raise ValueError
-        except (UnicodeDecodeError, ValueError, KeyError, TypeError):
-            self._send_json({"success": False, "message": "Choose a CSV file to import."}, 400)
-            return
-        try:
-            summary = import_csv_text(text, load_profile(), dry_run=dry_run)
-        except (LeadImportError, ProfileError) as e:
-            self._send_json({"success": False, "message": str(e)}, 400)
-            return
-        result = summary.as_dict()
-        if not dry_run:
-            log_event("Dashboard", "ImportLeads", "success",
-                      f"Imported {result['imported']} leads ({result['skipped']} skipped).")
-        self._send_json({"success": True, **result})
 
     def _api_run_bot(self) -> None:
         try:
@@ -517,49 +482,6 @@ class DashboardHandler(AIRoutesMixin, FollowupRoutesMixin, InsightsRoutesMixin, 
     def _api_pipeline(self) -> None:
         self._send_json(pipeline_stats(_load_profile_or_none()))
 
-    def _api_resume_sending(self) -> None:
-        try:
-            resumed = resume_sending(load_profile())
-        except ProfileError as e:
-            self._send_json({"success": False, "message": str(e)}, 400)
-            return
-        self._send_json({"success": True, "resumed": resumed})
-
-    def _api_stats(self) -> None:
-        self._send_json(get_db_stats())
-
-    def _query(self, sql: str) -> list[dict]:
-        conn = get_connection()
-        try:
-            return [dict(r) for r in conn.execute(sql).fetchall()]
-        finally:
-            conn.close()
-
-    def _api_leads(self) -> None:
-        # Real prospects first (best fit on top); rejected sites last
-        rows = self._query("""SELECT * FROM leads ORDER BY status IN ('disqualified', 'invalid_email'),
-                              COALESCE(fit_score, 0) DESC, id DESC LIMIT 100""")
-        for row in rows:
-            if row.get("enriched_info"):
-                try:
-                    row["enriched_info"] = json.loads(row["enriched_info"])
-                except ValueError:
-                    pass
-            try:
-                row["fit_reasons_list"] = json.loads(row.get("fit_reasons") or "[]")
-            except ValueError:
-                row["fit_reasons_list"] = []
-        self._send_json({"leads": rows})
-
-    def _api_emails(self) -> None:
-        self._send_json({
-            "campaigns": self._query("SELECT * FROM email_campaigns ORDER BY id DESC"),
-            "logs": self._query("SELECT * FROM email_logs ORDER BY id DESC LIMIT 50"),
-        })
-
-    def _api_logs(self) -> None:
-        self._send_json({"logs": get_recent_logs(50)})
-
     def _api_update_status(self) -> None:
         self._send_json(read_update_status())
 
@@ -598,20 +520,6 @@ class DashboardHandler(AIRoutesMixin, FollowupRoutesMixin, InsightsRoutesMixin, 
             log_event("Dashboard", "SaveSettings", "success", f"Saved the {section} settings.")
         self._send_json(result, 200 if result["success"] else 400)
 
-    def _api_import_template(self) -> None:
-        from core.lead_import import TEMPLATE_CSV
-        self._send_body(TEMPLATE_CSV.encode("utf-8"), "text/csv", 200,
-                        {"Content-Disposition": 'attachment; filename="leads-template.csv"'})
-
-    def _api_export_csv(self) -> None:
-        csv_path = export_leads_to_csv()
-        if not os.path.exists(csv_path):
-            self._send_json({"error": "Export failed"}, 500)
-            return
-        with open(csv_path, "rb") as f:
-            content = f.read()
-        self._send_body(content, "text/csv", 200,
-                        {"Content-Disposition": 'attachment; filename="leads_export.csv"'})
 
 
 class DashboardServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
