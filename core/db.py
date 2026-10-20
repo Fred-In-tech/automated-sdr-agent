@@ -156,20 +156,6 @@ def init_db():
         )
     """)
 
-    # 4. Social Posts Table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS social_posts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            platform TEXT DEFAULT 'X/Twitter',
-            topic TEXT NOT NULL,
-            content TEXT NOT NULL,
-            scheduled_at TEXT NOT NULL,
-            status TEXT DEFAULT 'scheduled',
-            likes INTEGER DEFAULT 0,
-            retweets INTEGER DEFAULT 0,
-            created_at TEXT NOT NULL
-        )
-    """)
 
     # 5. Bot Execution Logs
     cursor.execute("""
@@ -257,11 +243,6 @@ def get_db_stats():
     cursor.execute("SELECT COUNT(*) FROM email_logs")
     total_emails_sent = cursor.fetchone()[0]
 
-    cursor.execute("SELECT COUNT(*) FROM social_posts")
-    total_social_posts = cursor.fetchone()[0]
-
-    cursor.execute("SELECT COUNT(*) FROM social_posts WHERE status = 'published'")
-    published_social_posts = cursor.fetchone()[0]
 
     cursor.execute("SELECT COUNT(*) FROM bot_logs")
     total_bot_runs = cursor.fetchone()[0]
@@ -273,8 +254,6 @@ def get_db_stats():
         "contacted_leads": contacted_leads,
         "total_campaigns": total_campaigns,
         "total_emails_sent": total_emails_sent,
-        "total_social_posts": total_social_posts,
-        "published_social_posts": published_social_posts,
         "total_bot_runs": total_bot_runs
     }
 

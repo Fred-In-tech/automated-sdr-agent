@@ -14,7 +14,7 @@
     sdr ai test            check your AI connection;  sdr drafts  review AI drafts
     sdr version
 
-Older commands still work: leadgen, email, inbox, social, pipeline, run-all, export, requalify,
+Older commands still work: leadgen, email, inbox, pipeline, run-all, export, requalify,
 digest. `python3 cli.py <command>` is the same as `sdr <command>`.
 """
 
@@ -356,8 +356,6 @@ def build_parser() -> argparse.ArgumentParser:
     email = sub.add_parser("email", help="Send cold emails to new leads")
     email.add_argument("--limit", type=int, help="Max emails to send (default: emails_per_run)")
     sub.add_parser("inbox", help="Handle replies, bounces and unsubscribes")
-    social = sub.add_parser("social", help="Draft a social post (does not post to X)")
-    social.add_argument("--topic", type=str, help="Topic for post/thread")
     sub.add_parser("pipeline", help="Find leads -> email them -> handle replies")
     sub.add_parser("run-all", help="Run every bot in sequence")
     sub.add_parser("export", help="Export leads to data/leads_export.csv")
@@ -405,12 +403,6 @@ def _run_locked(command: str, action: Callable[[], object], ui: UI):
         return action()
 
 
-def _social(topic: str | None) -> dict:
-    from bots.social_bot import SocialBot
-    bot = SocialBot()
-    return {"scheduled": bot.generate_and_schedule_thread(topic), "published": bot.publish_pending_posts()}
-
-
 def _legacy(args: argparse.Namespace, ui: UI):
     """The original bot commands; they print their result as JSON. The ones that change leads or
     send mail run under the runner's lock (see _run_locked); pipeline/run/run-all already do, inside
@@ -424,8 +416,6 @@ def _legacy(args: argparse.Namespace, ui: UI):
     if args.command == "inbox":
         from bots.inbox_listener import InboxListenerEngine
         return _run_locked("inbox", lambda: InboxListenerEngine().check_inbox_and_auto_reply(), ui)
-    if args.command == "social":
-        return _run_locked("social", lambda: _social(args.topic), ui)
     if args.command in ("pipeline", "run"):
         from runner import run_task
         return run_task("pipeline")

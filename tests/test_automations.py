@@ -9,7 +9,6 @@ import core.db
 from core.db import init_db, get_connection, get_db_stats, log_event
 from bots.leadgen_pipeline import LeadGenPipeline
 from bots.email_marketing import EmailMarketingEngine
-from bots.social_bot import SocialBot
 from runner import run_task
 
 # These tests hit the real web, your real database and your real email account.
@@ -51,7 +50,6 @@ class TestAutomatedSdr(unittest.TestCase):
         self.assertIn("leads", tables)
         self.assertIn("email_campaigns", tables)
         self.assertIn("email_logs", tables)
-        self.assertIn("social_posts", tables)
         self.assertIn("bot_logs", tables)
 
     @live_only
@@ -67,14 +65,6 @@ class TestAutomatedSdr(unittest.TestCase):
         res = engine.run_outreach_campaign(limit=2)
         self.assertIn("sent_count", res)
 
-    @live_only
-    def test_04_social_bot(self):
-        bot = SocialBot()
-        scheduled = bot.generate_and_schedule_thread("AI Test Topic")
-        self.assertEqual(scheduled["status"], "scheduled")
-
-        published = bot.publish_pending_posts()
-        self.assertGreaterEqual(published["published_count"], 1)
 
     @live_only
     def test_05_runner_pipeline(self):

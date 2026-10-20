@@ -343,8 +343,7 @@ including any hand-edited email wording. The old profile is first copied to
 | `sdr leadgen` | Finds new leads only (`--count N`). Searches the web |
 | `sdr email` | Emails leads that are due only (`--limit N`). **Emails real prospects** |
 | `sdr inbox` | Handles replies, bounces and unsubscribes only. Can send auto-replies |
-| `sdr pipeline` / `sdr run-all` | Same as `sdr run` (`run-all` also drafts social posts when `[social]` is on) |
-| `sdr social` | Drafts a social post (`--topic`). Never posts anything |
+| `sdr pipeline` / `sdr run-all` | Same as `sdr run` |
 
 Run `sdr <command> --help` for the exact options. The last group prints its result as JSON.
 
@@ -352,7 +351,7 @@ Run `sdr <command> --help` for the exact options. The last group prints its resu
 
 ```
 cli.py                  the `sdr` command (argparse); `python3 cli.py <command>` works too
-runner.py               scheduled entry point: runner.py --task pipeline|inbox|leadgen|email|social|all
+runner.py               scheduled entry point: runner.py --task pipeline|inbox|leadgen|email|all
 core/
   product.py            product name, version (reads VERSION), repo URL, brand colour
   config.py             loads/validates config/profile.toml and .env
@@ -376,7 +375,7 @@ core/
   dashboard_auth.py     dashboard password hashing, sessions, CSRF, login rate limit
   db.py                 SQLite (data/automations.db)
   qualify.py intent.py outreach_rules.py email_design.py email_verifier.py ai.py report.py notifications.py
-bots/                   leadgen_pipeline.py (+ lead_store.py), email_marketing.py, inbox_listener.py, digest.py, social_bot.py
+bots/                   leadgen_pipeline.py (+ lead_store.py), email_marketing.py, inbox_listener.py, digest.py
 dashboard/              server.py (localhost-only web server) + index.html + settings.js (Settings tab)
 config/                 profile.example.toml (documented template); profile.toml and do_not_contact.txt are the user's own (gitignored)
 data/                   the user's database, logs, backups, update_status.json (gitignored)

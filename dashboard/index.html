@@ -269,7 +269,6 @@
     <button class="tab-btn active" data-tab="overview" onclick="switchTab('overview')">Overview & Triggers</button>
     <button class="tab-btn" data-tab="leads" onclick="switchTab('leads')">Leads</button>
     <button class="tab-btn" data-tab="emails" onclick="switchTab('emails')">Email Outreach</button>
-    <button class="tab-btn" data-tab="social" onclick="switchTab('social')">Social Bot (X)</button>
     <button class="tab-btn" data-tab="settings" onclick="switchTab('settings')">⚙️ Settings</button>
   </nav>
 
@@ -328,7 +327,6 @@
         <div class="actions-bar">
           <button class="btn" onclick="triggerBot('leadgen')">🎯 Find New Leads</button>
           <button class="btn btn-emerald" onclick="triggerBot('email')">✉️ Send Outreach Emails</button>
-          <button class="btn btn-purple" onclick="triggerBot('social')">📱 Draft Social Post</button>
           <button class="btn btn-secondary" onclick="triggerBot('pipeline')">🚀 Run Full SDR Pipeline</button>
           <button class="btn btn-secondary" onclick="triggerBot('all')">⚡ Run All Bots</button>
         </div>
@@ -428,32 +426,6 @@
       </div>
     </div>
 
-    <!-- SOCIAL TAB -->
-    <div id="tab-social" class="tab-content">
-      <div class="section-card">
-        <div class="section-header">
-          <div class="section-title">📱 Scheduled Social Threads & Posts</div>
-          <button class="btn btn-purple" onclick="triggerBot('social')">📱 Generate & Schedule Thread</button>
-        </div>
-        <div style="overflow-x: auto;">
-          <table>
-            <thead>
-              <tr>
-                <th>Platform</th>
-                <th>Topic</th>
-                <th>Scheduled At</th>
-                <th>Status</th>
-                <th>Likes</th>
-                <th>Retweets</th>
-              </tr>
-            </thead>
-            <tbody id="social-table-body">
-              <!-- Rows populate dynamically -->
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
 
     <!-- SETTINGS TAB (built by settings.js from /api/settings) -->
     <div id="tab-settings" class="tab-content">
@@ -784,28 +756,6 @@
       document.getElementById('email-modal').style.display = 'none';
     }
 
-    async function fetchSocial() {
-      try {
-        const res = await api('/api/social');
-        const data = await res.json();
-        const tbody = document.getElementById('social-table-body');
-        tbody.innerHTML = '';
-        (data.posts || []).forEach(p => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td><strong>${esc(p.platform)}</strong></td>
-            <td>${esc(p.topic)}</td>
-            <td>${esc(p.scheduled_at.substring(0, 19).replace('T', ' '))}</td>
-            <td><span class="badge badge-purple">${esc(p.status)}</span></td>
-            <td>❤️ ${esc(p.likes)}</td>
-            <td>🔁 ${esc(p.retweets)}</td>
-          `;
-          tbody.appendChild(tr);
-        });
-      } catch (err) {
-        console.error('Failed to fetch social:', err);
-      }
-    }
 
     async function resumeSending() {
       if (!confirm('Start sending again? Bounced addresses are already removed. Earlier bounces stop counting; the limit stays the same.')) return;
@@ -918,7 +868,6 @@
       fetchLogs();
       fetchLeads();
       fetchEmails();
-      fetchSocial();
     }
 
     function manualRefreshDashboard() {

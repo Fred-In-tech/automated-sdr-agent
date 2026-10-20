@@ -228,8 +228,7 @@ or off, check for updates, run a health check.
 | `sdr email` | Emails leads that are due only (`--limit N`). **Emails real prospects** |
 | `sdr inbox` | Handles replies, bounces and unsubscribes only |
 | `sdr pipeline` | Same as `sdr run` |
-| `sdr run-all` | Same as `sdr run`, plus social drafts when `[social]` is enabled |
-| `sdr social` | Drafts a social post (`--topic`). It never posts anything |
+| `sdr run-all` | Same as `sdr run` |
 | `sdr digest` | Emails you the daily digest now (`--force` sends it even if it already went out today) |
 | `sdr export` | Exports your leads to `data/leads_export.csv` |
 | `sdr import FILE` | Imports your own leads from a CSV file with an `email` column, e.g. a file called leads.csv. Sends nothing. Options: `--dry-run` (only check), `--no-verify` (skip the mail-server check), `--template` (print an example file) |
@@ -441,7 +440,6 @@ Change settings with `sdr setup --section <name>`, or edit `config/profile.toml`
 | `[schedule]` | `run_times` (e.g. `["09:00", "14:00"]`), `reply_check_minutes` (`0` = only at full runs) |
 | `[updates]` | `mode`: `"notify"`, `"auto"` or `"off"` |
 | `[ai]` | `mode` (`off`, `local_only`, `hosted`), `provider`, `model`, `base_url`, `facts`, the job switches `openers`, `reply_intent`, `answer_questions`, `lead_fit`, and `monthly_budget_usd`. The key (hosted only) lives in `.env` as `AI_API_KEY`. See [Your AI](#your-ai) |
-| `[social]` | `enabled`, `topics`, `posts`. Drafts only; nothing is ever posted |
 
 **Placeholders** you can use in any email or reply: `{{first_name}}` (a real first name, or
 "there"), `{{company}}`, `{{category}}`, `{{location}}`, `{{opener}}`, `{{product_name}}`,
