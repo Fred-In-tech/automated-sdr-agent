@@ -5,13 +5,24 @@ from __future__ import annotations
 
 import json
 import os
+import time
 
-from core import deliverability, lead_review
+from core import deliverability, lead_review, today
 from core.config import ProfileError, load_env_file, load_profile
 from core.db import log_event
 from core.funnel import compute
 
 INSIGHTS_SCRIPT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "insights.js")
+SCHEDULE_CACHE_SECONDS = 60   # the page refreshes every few seconds; reading the crontab spawns a process
+_schedule_cache: dict = {"at": 0.0, "status": None}
+
+
+def _cached_schedule_status() -> dict:
+    """core.scheduler.schedule_status(), re-read at most once a minute."""
+    from core.scheduler import schedule_status
+    if _schedule_cache["status"] is None or time.monotonic() - _schedule_cache["at"] > SCHEDULE_CACHE_SECONDS:
+        _schedule_cache.update(at=time.monotonic(), status=schedule_status())
+    return _schedule_cache["status"]
 
 
 def _with_cap(result: dict) -> dict:
@@ -20,7 +31,7 @@ def _with_cap(result: dict) -> dict:
 
 class InsightsRoutesMixin:
     INSIGHTS_GET_ROUTES = {"/api/insights": "_api_insights", "/api/lead-review": "_api_lead_review",
-                           "/insights.js": "_insights_script"}
+                           "/api/today": "_api_today", "/insights.js": "_insights_script"}
     INSIGHTS_POST_ROUTES = {"/api/deliverability/check": "_api_deliverability_check",
                             "/api/lead-review": "_api_lead_review_decide"}
 
@@ -34,6 +45,13 @@ class InsightsRoutesMixin:
     def _api_insights(self) -> None:
         self._send_json({"deliverability": _with_cap(deliverability.load()), "funnel": compute(),
                          "review_count": lead_review.count()})
+
+    def _api_today(self) -> None:
+        try:
+            profile = load_profile()
+        except ProfileError:
+            profile = None
+        self._send_json(today.summary(profile, schedule_status=_cached_schedule_status))
 
     def _api_deliverability_check(self) -> None:
         load_env_file()

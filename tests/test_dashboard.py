@@ -509,7 +509,7 @@ class TestPasswordProtectedDashboard(DashboardServerCase):
 class TestSecurityHeaders(DashboardServerCase):
     CSP_DIRECTIVES = (
         "default-src 'self'", "img-src 'self' https: data:", "style-src 'self' 'unsafe-inline'",
-        "script-src 'self' 'unsafe-inline'", "frame-ancestors 'none'", "base-uri 'none'", "form-action 'self'",
+        "script-src 'self'", "frame-ancestors 'none'", "base-uri 'none'", "form-action 'self'",
     )
 
     def assert_security_headers(self, headers):
@@ -778,27 +778,31 @@ class TestSettingsNeedSignIn(DashboardServerCase):
 
 
 class TestDashboardPage(unittest.TestCase):
-    """Contract between index.html and the server (no browser needed)."""
+    """Contract between the page, its scripts and the server (no browser needed)."""
 
     @classmethod
     def setUpClass(cls):
         with open(server.INDEX_PATH, "r", encoding="utf-8") as f:
             cls.page = f.read()
+        cls.code = ""
+        for name, _type in server.STATIC_FILES.values():
+            with open(os.path.join(server.DASHBOARD_DIR, name), "r", encoding="utf-8") as f:
+                cls.code += f.read()
 
     def test_page_gets_its_csrf_token_and_sends_it_on_posts(self):
-        self.assertIn("/api/session", self.page)
-        self.assertIn("'X-CSRF-Token'", self.page)
+        self.assertIn("/api/session", self.code)
+        self.assertIn("'X-CSRF-Token'", self.code)
 
     def test_every_api_call_goes_through_the_csrf_aware_wrapper(self):
-        raw_calls = [line for line in self.page.splitlines() if "fetch('/api" in line or 'fetch("/api' in line]
+        raw_calls = [line for line in self.code.splitlines() if "fetch('/api" in line or 'fetch("/api' in line]
         self.assertEqual(raw_calls, [])
 
     def test_page_sends_expired_sessions_back_to_login(self):
-        self.assertIn("res.status === 401", self.page)
-        self.assertIn("'/login'", self.page)
+        self.assertIn("res.status === 401", self.code)
+        self.assertIn("'/login'", self.code)
 
     def test_page_shows_update_pill_and_logout_link(self):
-        self.assertIn("/api/update-status", self.page)
+        self.assertIn("/api/update-status", self.code)
         self.assertIn('id="update-pill"', self.page)
         self.assertIn('href="/logout"', self.page)
 
@@ -806,11 +810,27 @@ class TestDashboardPage(unittest.TestCase):
         """SECURITY.md lists everything the tool connects to; Google Fonts isn't on it (and every
         page open would send the user's IP to Google), so the page uses the system font stack."""
         self.assertEqual(external_resources(self.page), [])
-        self.assertNotIn("fonts.g", self.page)
-        self.assertNotIn("'Inter'", self.page)
-        self.assertIn("system-ui", self.page)
-        # script-src is 'self' + inline only: the script files are served by the dashboard itself
-        self.assertEqual(re.findall(r'<script[^>]*\bsrc="([^"]*)"', self.page), ["/settings.js", "/ai.js", "/followups.js", "/insights.js"])
+        self.assertNotIn("fonts.g", self.page + self.code)
+        self.assertNotIn("'Inter'", self.code)
+        self.assertIn("system-ui", self.code)
+        self.assertEqual(re.findall(r'<script[^>]*\bsrc="([^"]*)"', self.page),
+                         ["/app.js", "/tables.js", "/settings.js", "/ai.js", "/followups.js", "/insights.js"])
+
+    def test_no_inline_scripts_or_handlers(self):
+        """script-src is 'self' only, so inline code would silently not run: keep it all in files."""
+        self.assertEqual(re.findall(r"<script(?![^>]*\bsrc=)[^>]*>", self.page), [])
+        self.assertEqual(re.findall(r"\son[a-z]+\s*=", self.page), [])
+        self.assertNotIn("<style", self.page)
+
+    def test_scripts_never_build_markup(self):
+        for name in ("app.js", "tables.js"):
+            with open(os.path.join(server.DASHBOARD_DIR, name), encoding="utf-8") as f:
+                self.assertNotIn("innerHTML", f.read(), name)
+
+    def test_plain_labels(self):
+        for old in ("Run All Bots", "Overview & Triggers", "Engine Active", "Dispatch Outreach Campaign"):
+            self.assertNotIn(old, self.page)
+        self.assertEqual(re.findall(r"[\U0001F300-\U0001FAFF\u2600-\u26FF\u2700-\u27BF]", self.page), [])
 
 
 # ── Recognising our own dashboard (`sdr dashboard` port reuse) ──────────────

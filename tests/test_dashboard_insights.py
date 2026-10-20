@@ -64,3 +64,24 @@ class TestProtected(DashboardServerCase):
         token = self.login()
         self.assertEqual(self.post_json("/api/deliverability/check", {}, self.cookie(token))[0], 403)
         self.assertEqual(self.post_json("/api/lead-review", {"id": 1, "action": "approve"}, self.cookie(token))[0], 403)
+
+
+class TestTodayAndStaticFiles(InsightsCase):
+    def test_today_strip(self):
+        from dashboard import insights_routes
+        insights_routes._schedule_cache.update(at=0.0, status=None)
+        with mock.patch("core.scheduler.schedule_status", return_value={"installed": True}) as status:
+            code, data = self.get_json("/api/today")
+            self.get_json("/api/today")
+        self.assertEqual(code, 200)
+        self.assertTrue(data["schedule_on"])
+        self.assertIn("sent_today", data)
+        self.assertEqual(status.call_count, 1)   # cached: the crontab isn't read on every refresh
+
+    def test_styles_and_scripts_are_served_from_a_fixed_list(self):
+        for path, kind in (("/app.css", "text/css"), ("/app.js", "javascript"), ("/tables.js", "javascript")):
+            status, headers, _body = self.get(path)
+            self.assertEqual(status, 200, path)
+            self.assertIn(kind, headers["Content-Type"])
+        for path in ("/server.py", "/../core/db.py", "/app.css/../server.py", "/index.html.bak"):
+            self.assertEqual(self.get(path)[0], 404, path)

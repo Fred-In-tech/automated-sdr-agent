@@ -64,14 +64,22 @@ DRAIN_LIMIT_BYTES = 4 * 1024 * 1024  # read (and drop) oversized bodies up to th
 PROBE_TIMEOUT_SECONDS = 0.5
 MAX_PROBE_BYTES = 4 * 1024  # a probe answer is a short JSON object; whatever else answers isn't ours
 UPDATE_STATUS_PATH = os.path.join(BASE_DIR, "data", "update_status.json")
-INDEX_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "index.html")
-SETTINGS_SCRIPT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "settings.js")
+DASHBOARD_DIR = os.path.dirname(os.path.abspath(__file__))
+INDEX_PATH = os.path.join(DASHBOARD_DIR, "index.html")
+# The page's own styles and scripts, served from this folder. A fixed list, so no request path
+# ever becomes a file path. Keeping the code out of the page lets the CSP forbid inline scripts.
+STATIC_FILES = {
+    "/app.css": ("app.css", "text/css; charset=utf-8"),
+    "/app.js": ("app.js", "text/javascript; charset=utf-8"),
+    "/tables.js": ("tables.js", "text/javascript; charset=utf-8"),
+    "/settings.js": ("settings.js", "text/javascript; charset=utf-8"),
+}
 
 CONTENT_SECURITY_POLICY = "; ".join((
     "default-src 'self'",  # also covers fonts: the pages use the system font stack, nothing hosted elsewhere
     "img-src 'self' https: data:",  # brand logos live on the user's own website
     "style-src 'self' 'unsafe-inline'",
-    "script-src 'self' 'unsafe-inline'",  # the dashboard is a single self-contained page
+    "script-src 'self'",  # every script is a file the dashboard serves: no inline code, no handlers
     "frame-ancestors 'none'",
     "base-uri 'none'",
     "form-action 'self'",
@@ -166,7 +174,7 @@ class DashboardHandler(AIRoutesMixin, FollowupRoutesMixin, InsightsRoutesMixin, 
         "/api/export-csv": "_api_export_csv",
         "/api/import-template": "_api_import_template",
         "/api/settings": "_api_settings",
-        "/settings.js": "_settings_script",
+        **{path: "_static" for path in STATIC_FILES},
         **AIRoutesMixin.AI_GET_ROUTES, **FollowupRoutesMixin.FOLLOWUP_GET_ROUTES,
         **InsightsRoutesMixin.INSIGHTS_GET_ROUTES,
     }
@@ -559,10 +567,11 @@ class DashboardHandler(AIRoutesMixin, FollowupRoutesMixin, InsightsRoutesMixin, 
         from core.settings_api import read_settings
         self._send_json(read_settings())
 
-    def _settings_script(self) -> None:
+    def _static(self) -> None:
+        name, content_type = STATIC_FILES[self._request_path()]
         try:
-            with open(SETTINGS_SCRIPT_PATH, "rb") as f:
-                self._send_body(f.read(), "text/javascript; charset=utf-8")
+            with open(os.path.join(DASHBOARD_DIR, name), "rb") as f:
+                self._send_body(f.read(), content_type)
         except OSError:
             self.send_error(404, "File Not Found")
 
