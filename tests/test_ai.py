@@ -1,72 +1,66 @@
-"""Offline tests for the optional Claude layer: a fake client stands in for the API."""
+"""Profiles from before v1.3 ([ai] enabled = true + ANTHROPIC_API_KEY) keep working on the new
+AI layer, and the old function names still behave. The AI call itself is faked."""
 
-import sys
-import types
+import os
+import tempfile
 import unittest
 from unittest import mock
 
 from core import ai
+from core.ai.connectors import Reply
+from core.ai.jobs import AIRun, UsageLog, write_opener
 
-fake_sdk = types.SimpleNamespace(
-    APIStatusError=type("APIStatusError", (Exception,), {}),
-    APIConnectionError=type("APIConnectionError", (Exception,), {}),
-)
-PROFILE = {"ai": {"enabled": True, "model": "claude-opus-5"}}
+LEGACY = {"ai": {"enabled": True, "model": "claude-opus-5"}}
 
 
-def fake_client(text: str | None, stop_reason: str = "end_turn"):
-    calls = []
+class TestLegacyProfiles(unittest.TestCase):
+    def test_legacy_profile_with_key_uses_claude(self):
+        with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "ak-test"}):
+            self.assertTrue(ai.ai_enabled(LEGACY))
+            run = AIRun(LEGACY)
+        self.assertEqual((run.cfg.provider, run.cfg.model, run.cfg.mode), ("anthropic", "claude-opus-5", "hosted"))
 
-    def create(**kwargs):
-        calls.append(kwargs)
-        content = [types.SimpleNamespace(type="text", text=text)] if text is not None else []
-        return types.SimpleNamespace(stop_reason=stop_reason, content=content)
+    def test_legacy_profile_without_key_is_off(self):
+        with mock.patch.dict(os.environ, {}, clear=True):
+            self.assertFalse(ai.ai_enabled(LEGACY))
 
-    client = types.SimpleNamespace(beta=types.SimpleNamespace(messages=types.SimpleNamespace(create=create)))
-    return client, calls
+    def test_old_triage_name_uses_the_ai_then_rules(self):
+        calls = []
+
+        def fake_chat(cfg, system, user, **kwargs):
+            calls.append(cfg.provider)
+            return Reply('{"intent": "question"}')
+
+        with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "ak-test"}), mock.patch("core.ai.jobs.chat", fake_chat):
+            self.assertEqual(ai.classify_reply_with_ai(LEGACY, "how much is it?", ["unsubscribe"]), "question")
+            self.assertEqual(ai.classify_reply_with_ai(LEGACY, "unsubscribe me", ["unsubscribe"]), "unsubscribe")
+        self.assertEqual(calls, ["anthropic"])          # the opt-out never went to the AI
+
+    def test_opener_through_the_new_api(self):
+        with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "ak-test"}), \
+                mock.patch("core.ai.jobs.chat", lambda *a, **k: Reply("Your barn wedding film at Prairie Loft had a lovely pace.")):
+            self.assertTrue(write_opener(AIRun(LEGACY, usage=MemoryUsage()), "Prairie", "videographer", "barn").startswith("Your barn"))
 
 
-class TestAI(unittest.TestCase):
-    def setUp(self):
-        patcher = mock.patch.dict(sys.modules, {"anthropic": fake_sdk})
-        patcher.start()
-        self.addCleanup(patcher.stop)
+class MemoryUsage:
+    def month_cost(self):
+        return 0.0
 
-    def test_opener_is_used_when_valid(self):
-        client, calls = fake_client("Your barn wedding film at Prairie Loft had a lovely, unhurried pace.")
-        opener = ai.write_opener(PROFILE, "Prairie Films", "wedding videographer", "barn weddings...", client)
-        self.assertTrue(opener.startswith("Your barn wedding film"))
-        self.assertEqual(calls[0]["model"], "claude-opus-5")
-        self.assertEqual(calls[0]["fallbacks"], "default")
-        self.assertIn("<website_text>", calls[0]["messages"][0]["content"])
+    def add(self, cost):
+        pass
 
-    def test_unsafe_or_empty_openers_fall_back(self):
-        for bad in ("NONE", "Visit https://evil.test now.", "Line one\nLine two is here", "Hi"):
-            client, _ = fake_client(bad)
-            self.assertIsNone(ai.write_opener(PROFILE, "X", "y", "text", client), bad)
 
-    def test_refusal_falls_back(self):
-        client, _ = fake_client(None, stop_reason="refusal")
-        self.assertIsNone(ai.write_opener(PROFILE, "X", "y", "text", client))
+class TestUsageLog(unittest.TestCase):
+    def test_spend_is_saved_per_month_and_private(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            log = UsageLog(os.path.join(tmp, "data", "ai_usage.json"))
+            self.assertEqual(log.month_cost(), 0.0)
+            log.add(0.25)
+            log.add(0.5)
+            self.assertAlmostEqual(UsageLog(log.path).month_cost(), 0.75)
+            if os.name != "nt":
+                self.assertEqual(os.stat(log.path).st_mode & 0o777, 0o600)
 
-    def test_ai_triage_uses_schema(self):
-        client, calls = fake_client('{"intent": "not_now"}')
-        intent = ai.classify_reply_with_ai(PROFILE, "Ask me again after October", ["unsubscribe"], client)
-        self.assertEqual(intent, "not_now")
-        self.assertEqual(calls[0]["output_config"]["format"]["schema"]["properties"]["intent"]["enum"],
-                         list(ai.INTENTS))
 
-    def test_opt_out_never_goes_to_the_model(self):
-        client, calls = fake_client('{"intent": "interested"}')
-        self.assertEqual(ai.classify_reply_with_ai(PROFILE, "please unsubscribe me", ["unsubscribe"], client),
-                         "unsubscribe")
-        self.assertEqual(calls, [])
-
-    def test_bad_ai_answer_falls_back_to_rules(self):
-        client, _ = fake_client("not json")
-        self.assertEqual(ai.classify_reply_with_ai(PROFILE, "Sounds good!", ["unsubscribe"], client), "interested")
-
-    def test_disabled_without_key(self):
-        with mock.patch.dict("os.environ", {"ANTHROPIC_API_KEY": ""}):
-            self.assertFalse(ai.ai_enabled(PROFILE))
-        self.assertFalse(ai.ai_enabled({"ai": {"enabled": False}}))
+if __name__ == "__main__":
+    unittest.main()
