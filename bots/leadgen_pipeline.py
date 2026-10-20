@@ -638,6 +638,7 @@ class LeadGenPipeline:
 
 
     def run_pipeline(self, count: int | None = None, category_filter: str = None) -> dict:
+        reset_ai_runs()   # a fresh AI circuit breaker every run, even in a long-lived process
         count = count or self.profile["targeting"].get("leads_per_run", 4)
         log_event("LeadGenPipeline", "Start", "running",
                   f"Live multi-engine scrape: {count} leads.")

@@ -10,8 +10,10 @@ anything on the internet must use https.
 
 from __future__ import annotations
 
+import functools
 import ipaddress
 import os
+import socket
 from dataclasses import dataclass, field
 from typing import Mapping
 from urllib.parse import urlsplit
@@ -32,6 +34,8 @@ DEFAULT_TIMEOUT = 60.0
 # on a busy laptop, so local AI gets longer by default.
 DEFAULT_LOCAL_TIMEOUT = 120.0
 DEFAULT_KEY_ENV = "AI_API_KEY"
+# The key setting names an environment variable; it may never point at the tool's other secrets.
+FORBIDDEN_KEY_PARTS = ("SMTP", "IMAP", "DASHBOARD", "PASS", "BRAVE")
 LEGACY_KEY_ENV = "ANTHROPIC_API_KEY"
 
 
@@ -130,7 +134,10 @@ def load_ai_config(profile: Mapping, environ: Mapping[str, str] | None = None) -
     preset = PRESETS[provider]
     base_url = str(ai.get("base_url") or preset.base_url).strip().rstrip("/")
     key_env = str(ai.get("api_key_env") or DEFAULT_KEY_ENV).strip()
-    key = environ.get(key_env) or (environ.get(LEGACY_KEY_ENV) if provider == "anthropic" else None) or None
+    if any(part in key_env.upper() for part in FORBIDDEN_KEY_PARTS):
+        key = None                    # e.g. "SMTP_PASS": never send the mailbox password to an AI
+    else:
+        key = environ.get(key_env) or (environ.get(LEGACY_KEY_ENV) if provider == "anthropic" else None) or None
     return AIConfig(mode=mode, provider=provider, adapter=preset.adapter, base_url=base_url,
                     model=str(ai.get("model") or "").strip(), api_key=key, auth=preset.auth,
                     timeout=_number(ai.get("timeout_seconds"), 0.0) or (
@@ -138,22 +145,41 @@ def load_ai_config(profile: Mapping, environ: Mapping[str, str] | None = None) -
                     monthly_budget_usd=_number(ai.get("monthly_budget_usd"), 0.0), jobs=_jobs(ai))
 
 
+def _ip_is_private(ip) -> bool:
+    if ip.version == 6 and ip.ipv4_mapped:      # ::ffff:8.8.8.8 is 8.8.8.8 (older Pythons call it private)
+        ip = ip.ipv4_mapped
+    return ip.is_loopback or ip.is_link_local or (ip.is_private and not ip.is_global)
+
+
+@functools.lru_cache(maxsize=64)
+def _name_is_private(host: str) -> bool:
+    """A name counts as local only if every address it resolves to is (no trusting `.local`)."""
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except (OSError, UnicodeError):
+        return False
+    addresses = {info[4][0].split("%")[0] for info in infos}
+    try:
+        return bool(addresses) and all(_ip_is_private(ipaddress.ip_address(a)) for a in addresses)
+    except ValueError:
+        return False
+
+
 def is_private_host(url: str) -> bool:
-    """True for this computer and the home/office network: loopback, private ranges, link-local,
-    `localhost` and `*.local` names."""
+    """True for this computer and the home/office network: loopback, private ranges and
+    link-local addresses. Names other than `localhost` are resolved and every address checked."""
     try:
         host = (urlsplit(url).hostname or "").lower()
     except ValueError:
         return False
     if not host:
         return False
-    if host == "localhost" or host.endswith(".localhost") or host.endswith(".local"):
+    if host == "localhost":
         return True
     try:
-        ip = ipaddress.ip_address(host)
+        return _ip_is_private(ipaddress.ip_address(host))
     except ValueError:
-        return False
-    return ip.is_loopback or ip.is_private or ip.is_link_local
+        return _name_is_private(host)
 
 
 def url_problem(cfg: AIConfig) -> str | None:
@@ -162,7 +188,10 @@ def url_problem(cfg: AIConfig) -> str | None:
         return "AI is off."
     if not cfg.base_url:
         return f"{cfg.label} needs an address (base URL). Add it in Settings > AI."
-    scheme = urlsplit(cfg.base_url).scheme.lower()
+    parts = urlsplit(cfg.base_url)
+    if parts.username or parts.password:
+        return "Don't put a user name or password in the AI address. Use the API key field instead."
+    scheme = parts.scheme.lower()
     if scheme not in ("http", "https"):
         return "The AI address must start with http:// or https://."
     private = is_private_host(cfg.base_url)

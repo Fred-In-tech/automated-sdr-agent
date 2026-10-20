@@ -54,6 +54,15 @@ class TestDraftsAPI(AICase):
         self.assertIn("link", json.loads(body)["message"])
         self.assertTrue(drafts.has_pending(lead, "opener"))
 
+    def test_edits_are_checked_however_long_the_queue(self):
+        lead = self.add_lead()
+        with mock.patch("core.ai.drafts.pending", return_value=[]):     # the draft isn't in any listing
+            a = drafts.add_draft(lead, "answer", "Plans start at $29 a month.")
+            status, _h, _b = self.post_json("/api/ai/drafts", {"id": a, "action": "edit", "body": "Call 512-555-0100 now"})
+        self.assertEqual(status, 400)
+        status, _h, _b = self.post_json("/api/ai/drafts", {"id": a, "action": "edit", "body": 5})
+        self.assertEqual(status, 400)
+
     def test_bad_requests(self):
         for payload, code in (({"id": 999, "action": "approve"}, 404), ({"id": "x", "action": "approve"}, 400),
                               ({"action": "approve"}, 400)):

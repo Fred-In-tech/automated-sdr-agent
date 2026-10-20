@@ -57,10 +57,14 @@ class AIRoutesMixin:
             self._send_json({"success": False, "message": "Choose a draft and what to do with it."}, 400)
             return
         if action == "edit":
-            kind = next((d["kind"] for d in drafts.pending(limit=500) if d["id"] == draft_id), None)
-            valid = (is_valid_opener(body or "") if kind == "opener" else is_valid_answer(body or "", _profile()))
-            if kind and not valid:
-                self._send_json({"success": False, "message": EDIT_HELP[kind]}, 400)
+            draft = drafts.get(draft_id)
+            if draft is None:
+                self._send_json({"success": False, "message": "That draft doesn't exist."}, 404)
+                return
+            valid = isinstance(body, str) and (is_valid_opener(body) if draft["kind"] == "opener"
+                                               else is_valid_answer(body, _profile()))
+            if not valid:
+                self._send_json({"success": False, "message": EDIT_HELP.get(draft["kind"], "That text can't be used.")}, 400)
                 return
         try:
             draft = drafts.decide(draft_id, action, body)

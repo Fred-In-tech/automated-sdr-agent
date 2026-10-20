@@ -64,7 +64,6 @@ def save_leads(candidates: list, ideal_client: str) -> list:
     conn = get_connection()
     cursor = conn.cursor()
     saved = []
-    opener_drafts: list[tuple[int, str]] = []
     created_at = datetime.now(timezone.utc).isoformat()
 
     for item in candidates:
@@ -107,15 +106,12 @@ def save_leads(candidates: list, ideal_client: str) -> list:
                   lead["opener"], lead["ai_fit"], created_at))
             saved.append({**lead, "id": cursor.lastrowid})
             if item.get("opener_draft"):
-                opener_drafts.append((cursor.lastrowid, item["opener_draft"]))
+                add_draft(cursor.lastrowid, "opener", item["opener_draft"], cursor=cursor)
         except Exception as e:
             log_event("LeadGenPipeline", "SaveError", "warning", f"Failed to save {email}: {e}")
 
     conn.commit()
     conn.close()
-    # Added only after the commit: the review queue opens its own connection.
-    for lead_id, text in opener_drafts:
-        add_draft(lead_id, "opener", text)
     return saved
 
 

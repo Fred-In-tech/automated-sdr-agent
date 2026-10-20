@@ -239,8 +239,12 @@ class EmailMarketingEngine:
         """, [now_iso, region_like, region_like, budget])
         leads = [dict(r) for r in cursor.fetchall()]
         if len(leads) < budget:
+            # Leads whose AI first line is waiting for the owner's review are left out, so they
+            # never use up a run's sending budget (see core/ai/drafts.py).
             cursor.execute("""
                 SELECT * FROM leads WHERE status = 'new' AND (? IS NULL OR location LIKE ?)
+                  AND NOT EXISTS (SELECT 1 FROM ai_drafts d WHERE d.lead_id = leads.id AND d.kind = 'opener'
+                                  AND d.status = 'pending')
                 ORDER BY COALESCE(fit_score, 0) DESC, id LIMIT ?
             """, [region_like, region_like, budget - len(leads)])
             leads += [dict(r) for r in cursor.fetchall()]
@@ -278,6 +282,10 @@ class EmailMarketingEngine:
     def run_outreach_campaign(self, campaign_id: int = None, limit: int | None = None, region: str = None) -> dict:
         """Send the next email of the sequence to each lead that's due, within the daily cap."""
         now = datetime.now(timezone.utc)
+        expired = ai_drafts.expire_pending("opener", ai_drafts.OPENER_REVIEW_WINDOW)
+        if expired:
+            log_event("EmailMarketingEngine", "AIDraft", "info",
+                      f"{expired} AI first line(s) waited over 3 days for review; the standard first line is used.")
         warnings = compliance_warnings(self.profile)
         blocking = bool(warnings) and self.profile["sender"].get("require_postal_address", True)
         for warning in warnings:
@@ -348,8 +356,7 @@ class EmailMarketingEngine:
                     continue
                 opener_draft = ai_drafts.approved_for(lead["id"], "opener")
                 if opener_draft:
-                    lead["opener"] = opener_draft["body"]
-                    cursor.execute("UPDATE leads SET opener = ? WHERE id = ?", (lead["opener"], lead["id"]))
+                    lead["opener"] = opener_draft["body"]   # saved with the send below
             if step == 1:
                 is_valid, reason = verify_lead_email(lead["email"])
                 if not is_valid:
@@ -365,6 +372,8 @@ class EmailMarketingEngine:
                 headers.update({"In-Reply-To": lead["thread_message_id"], "References": lead["thread_message_id"]})
 
             if self.send_real_email(lead["email"], subject, html_body, text_body, headers):
+                if opener_draft:
+                    cursor.execute("UPDATE leads SET opener = ? WHERE id = ?", (lead["opener"], lead["id"]))
                 self._record_send(cursor, lead, step, subject, text_body, message_id, kind)
                 conn.commit()
                 if opener_draft:
