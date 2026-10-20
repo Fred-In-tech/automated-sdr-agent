@@ -9,6 +9,18 @@ forward to one of those tags, and it shows you the notes below before it does.
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-10-20
+
+### Security
+
+- **dnspython 2.9.0**, which fixes a reported issue where a crafted DNS answer could make the
+  library use excessive CPU. The tool uses it to check that each lead's domain can receive email,
+  so it talks to outside DNS servers. `sdr update` installs it for you.
+
+### Changed
+
+- **soupsieve 3.0.3** (used by beautifulsoup4 when reading websites), with its matching fixes.
+
 ## [1.4.0] - 2026-10-20
 
 ### Added
