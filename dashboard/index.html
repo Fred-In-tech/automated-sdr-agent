@@ -192,6 +192,32 @@
     .ai-draft-kind { font-weight: 600; }
     .ai-draft-badge { margin-left: 0.5rem; font-size: 0.75rem; font-weight: 600; color: var(--danger); }
     .ai-draft-text { width: 100%; }
+    .fu-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.75rem; padding: 0.9rem 0;
+              border-top: 1px solid var(--border); }
+    .fu-row-overdue { border-left: 3px solid var(--danger); padding-left: 0.75rem; }
+    .fu-row-today { border-left: 3px solid var(--brand); padding-left: 0.75rem; }
+    .fu-main { flex: 1 1 320px; min-width: 0; }
+    .fu-who { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-bottom: 0.25rem; }
+    .fu-next { color: var(--text-main); }
+    .fu-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+    .fu-actions .set-input, .fu-form .set-input { width: auto; }
+    .fu-badge { font-size: 0.72rem; font-weight: 700; padding: 0.12rem 0.5rem; border-radius: 999px;
+                background: color-mix(in srgb, var(--muted) 14%, white); color: var(--muted); }
+    .fu-overdue { background: color-mix(in srgb, var(--danger) 12%, white); color: var(--danger); }
+    .fu-today { background: color-mix(in srgb, var(--brand) 12%, white); color: var(--brand); }
+    .fu-stale { background: color-mix(in srgb, #D97706 14%, white); color: #B45309; }
+    .fu-value-tag { font-size: 0.8rem; font-weight: 600; color: var(--success); }
+    .fu-snooze { padding: 0.35rem 0.6rem; font-size: 0.78rem; }
+    .fu-form { flex-basis: 100%; display: grid; gap: 0.5rem; padding-top: 0.5rem; }
+    .fu-form-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .fu-form-row input[type=text] { flex: 1 1 240px; }
+    .fu-value { max-width: 120px; }
+    .fu-empty { color: var(--muted); padding: 1rem 0; }
+    .fu-board { display: grid; grid-template-columns: repeat(5, minmax(140px, 1fr)); gap: 0.75rem; overflow-x: auto; }
+    .fu-col { background: var(--bg); border-radius: 12px; padding: 0.6rem; }
+    .fu-col-head { font-weight: 600; font-size: 0.85rem; margin-bottom: 0.5rem; }
+    .fu-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.6rem;
+               margin-bottom: 0.4rem; font-size: 0.85rem; }
     .set-error { color: #B42318; }
     .set-checklist ul { list-style: none; margin-top: 0.75rem; display: grid; gap: 0.5rem; }
     .set-checklist a { color: var(--ink); font-weight: 600; }
@@ -269,6 +295,7 @@
     <button class="tab-btn active" data-tab="overview" onclick="switchTab('overview')">Overview & Triggers</button>
     <button class="tab-btn" data-tab="leads" onclick="switchTab('leads')">Leads</button>
     <button class="tab-btn" data-tab="emails" onclick="switchTab('emails')">Email Outreach</button>
+    <button class="tab-btn" data-tab="followups" onclick="switchTab('followups')">Follow-ups</button>
     <button class="tab-btn" data-tab="settings" onclick="switchTab('settings')">⚙️ Settings</button>
   </nav>
 
@@ -427,6 +454,11 @@
     </div>
 
 
+    <!-- FOLLOW-UPS TAB (built by followups.js from /api/followups) -->
+    <div id="tab-followups" class="tab-content">
+      <div id="followups-root">Loading your follow-ups...</div>
+    </div>
+
     <!-- SETTINGS TAB (built by settings.js from /api/settings) -->
     <div id="tab-settings" class="tab-content">
       <div id="settings-root"><div class="section-card">Loading your settings...</div></div>
@@ -494,6 +526,7 @@
 
   <script src="/settings.js"></script>
   <script src="/ai.js"></script>
+  <script src="/followups.js"></script>
   <script>
     function esc(value) {
       return String(value ?? '').replace(/[&<>"']/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch]));
@@ -614,6 +647,7 @@
       panel.classList.add('active');
       history.replaceState(null, '', tabId === 'overview' ? location.pathname : '#' + tabId);
       if (tabId === 'settings') loadSettings();
+      if (tabId === 'followups' && window.loadFollowups) loadFollowups();
     }
 
     // "sdr setup" opens the dashboard at #settings to finish setting up in the browser.
